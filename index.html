@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>视频对比工具</title>
+<style>
+html { background: #f2f3f5; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #f2f3f5;
+  color: #1a1a1a;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* ── 顶栏 ── */
+.header {
+  flex: 0 0 auto;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e4e8;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-height: 48px;
+}
+
+.logo { font-size: 13px; font-weight: 700; color: #111; white-space: nowrap; }
+
+.sep { width: 1px; height: 22px; background: #e0e0e0; flex-shrink: 0; }
+
+.upload-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px;
+  border-radius: 6px;
+  border: 1px solid #d8d9dd;
+  background: #f7f8fa;
+  color: #444;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.upload-btn:hover { border-color: #b0b3bb; background: #eef0f3; }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dot.a { background: #2d8cf0; }
+.dot.b { background: #f56c6c; }
+.fname {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 130px;
+  font-size: 11px;
+  color: #999;
+}
+.upload-btn input { display: none; }
+
+.spacer { flex: 1; }
+
+.export-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid #409eff;
+  background: #409eff;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+  white-space: nowrap;
+}
+.export-btn:hover { background: #2d8cf0; border-color: #2d8cf0; }
+.export-btn:disabled { border-color: #d0d3d8; background: #e8eaed; color: #bbb; cursor: not-allowed; }
+
+/* ── 偏移控制行 ── */
+.offset-row {
+  flex: 0 0 auto;
+  background: #f9fafb;
+  border-bottom: 1px solid #e2e4e8;
+  padding: 7px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.offset-label { font-size: 12px; color: #888; white-space: nowrap; }
+
+.fine-btn {
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid #d8d9dd;
+  background: #fff;
+  color: #555;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background .12s;
+  white-space: nowrap;
+}
+.fine-btn:hover { background: #eef0f3; color: #111; }
+
+.offset-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  min-width: 80px;
+  max-width: 400px;
+  height: 4px;
+  background: #d8d9dd;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+.offset-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: #f56c6c;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+
+.offset-num-input {
+  width: 72px;
+  padding: 3px 6px;
+  border-radius: 5px;
+  border: 1px solid #d8d9dd;
+  background: #fff;
+  color: #d46b00;
+  font-size: 12px;
+  font-family: monospace;
+  text-align: right;
+  outline: none;
+  font-weight: 600;
+}
+.offset-num-input:focus { border-color: #409eff; }
+
+.sync-cur-btn {
+  padding: 4px 10px;
+  border-radius: 5px;
+  border: 1px solid #d8d9dd;
+  background: #fff;
+  color: #555;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .12s;
+}
+.sync-cur-btn:hover { background: #eef0f3; color: #111; }
+
+.reset-btn {
+  padding: 4px 10px;
+  border-radius: 5px;
+  border: 1px solid #d8d9dd;
+  background: #fff;
+  color: #999;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .12s;
+}
+.reset-btn:hover { background: #eef0f3; color: #555; }
+
+/* ── 视频区域 ── */
+.video-area {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+  background: #2a2a2a;
+}
+
+.panel {
+  flex: 1;
+  position: relative;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.drop-zone {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 2px dashed #555;
+  color: #888;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color .2s, color .2s;
+  text-align: center;
+  padding: 20px;
+  background: #1c1c1c;
+}
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: #888;
+  color: #bbb;
+}
+
+video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+  display: none;
+}
+video.loaded { display: block; }
+
+.panel-overlay {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 28px 12px 10px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.75));
+  pointer-events: none;
+}
+.panel-filename {
+  font-size: 11px;
+  color: #ccc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.panel-timecode {
+  font-size: 11px;
+  font-family: monospace;
+  color: #aaa;
+  margin-top: 1px;
+}
+
+.panel-badge {
+  position: absolute;
+  top: 10px; left: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 6px;
+  overflow: hidden;
+  z-index: 5;
+  pointer-events: auto;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+.badge-letter {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  padding: 4px 9px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.panel-badge.a .badge-letter { background: rgba(45,140,240,0.92); color: #fff; }
+.panel-badge.b .badge-letter { background: rgba(245,108,108,0.92); color: #fff; }
+
+.badge-note {
+  background: rgba(0,0,0,0.55);
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 8px 4px 2px;
+  min-width: 60px;
+  max-width: 280px;
+  width: 200px;
+  caret-color: #fff;
+}
+.badge-note::placeholder { color: rgba(255,255,255,0.35); font-weight: 400; }
+.badge-note:focus { background: rgba(0,0,0,0.75); }
+
+.gutter { width: 3px; background: #e2e4e8; flex-shrink: 0; }
+
+/* ── 控制栏 ── */
+.ctrl-bar {
+  flex: 0 0 auto;
+  background: #ffffff;
+  border-top: 1px solid #e2e4e8;
+  padding: 7px 14px 9px;
+}
+
+.progress-track {
+  position: relative;
+  height: 5px;
+  background: #e0e2e6;
+  border-radius: 3px;
+  cursor: pointer;
+  margin-bottom: 7px;
+  transition: height .1s;
+}
+.progress-track:hover { height: 7px; }
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #2d8cf0 0%, #7c3aed 100%);
+  border-radius: 3px;
+  pointer-events: none;
+}
+.progress-thumb {
+  position: absolute;
+  top: 50%; left: 0%;
+  width: 13px; height: 13px;
+  background: #fff;
+  border: 2px solid #2d8cf0;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .15s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.progress-track:hover .progress-thumb { opacity: 1; }
+
+/* ── 裁剪区域和手柄 ── */
+.trim-region {
+  position: absolute;
+  top: -1px; bottom: -1px;
+  background: rgba(45,140,240,0.13);
+  border-left: 2px solid rgba(45,140,240,0.8);
+  border-right: 2px solid rgba(45,140,240,0.8);
+  pointer-events: none;
+  display: none;
+}
+.trim-handle {
+  position: absolute;
+  top: 50%;
+  width: 14px; height: 28px;
+  transform: translate(-50%, -50%);
+  cursor: ew-resize;
+  z-index: 10;
+  display: none;
+}
+.trim-handle::after {
+  content: '';
+  position: absolute;
+  left: 50%; top: 0; bottom: 0;
+  width: 4px;
+  background: #2d8cf0;
+  transform: translateX(-50%);
+  border-radius: 2px;
+  box-shadow: 0 0 0 1.5px #fff, 0 0 5px rgba(45,140,240,0.5);
+}
+
+/* ── 裁剪/速度控制行 ── */
+.trim-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 5px;
+}
+.trim-btn {
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #d8d9dd;
+  background: #f7f8fa;
+  color: #555;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .12s;
+  line-height: 18px;
+}
+.trim-btn:hover { background: #eef0f3; color: #111; }
+.trim-btn.set { border-color: #2d8cf0; background: #deeeff; color: #1a6ec9; font-weight: 600; }
+.trim-info {
+  font-size: 11px;
+  font-family: monospace;
+  color: #888;
+  white-space: nowrap;
+}
+.speed-adj-btn {
+  width: 22px; height: 22px;
+  border-radius: 4px;
+  border: 1px solid #d8d9dd;
+  background: #f7f8fa;
+  color: #444;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background .12s;
+  line-height: 1;
+  padding: 0;
+}
+.speed-adj-btn:hover { background: #eef0f3; }
+.speed-disp {
+  min-width: 40px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #333;
+  font-family: monospace;
+}
+
+.ctrl-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cbtn {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color .12s, background .12s;
+  flex-shrink: 0;
+}
+.cbtn:hover { color: #111; background: #eef0f3; }
+.cbtn:disabled { color: #ccc; cursor: default; }
+.cbtn:disabled:hover { background: none; }
+
+.time-txt {
+  font-size: 12px;
+  font-family: monospace;
+  color: #888;
+  min-width: 105px;
+}
+
+.speed-sel {
+  background: #fff;
+  border: 1px solid #d8d9dd;
+  color: #555;
+  padding: 3px 5px;
+  border-radius: 5px;
+  font-size: 11px;
+  cursor: pointer;
+  outline: none;
+}
+
+.vol-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.vol-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 65px; height: 3px;
+  background: #d8d9dd;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+.vol-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 11px; height: 11px;
+  border-radius: 50%;
+  background: #888;
+  cursor: pointer;
+}
+
+/* ── 命名对话框 ── */
+.name-dialog {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 300;
+  align-items: center;
+  justify-content: center;
+}
+.name-dialog.show { display: flex; }
+.name-box {
+  background: #ffffff;
+  border: 1px solid #e2e4e8;
+  border-radius: 10px;
+  padding: 24px 26px 20px;
+  width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.15);
+}
+.name-box h2 { font-size: 14px; font-weight: 600; color: #111; }
+.name-box label { font-size: 11px; color: #888; margin-bottom: 4px; display: block; }
+.name-input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #d8d9dd;
+  background: #f7f8fa;
+  color: #1a1a1a;
+  font-size: 13px;
+  outline: none;
+  transition: border-color .15s;
+}
+.name-input:focus { border-color: #409eff; background: #fff; }
+.name-ext { font-size: 11px; color: #aaa; }
+.name-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
+.name-cancel {
+  padding: 7px 16px;
+  border-radius: 6px;
+  border: 1px solid #d8d9dd;
+  background: #f7f8fa;
+  color: #666;
+  font-size: 12px;
+  cursor: pointer;
+}
+.name-cancel:hover { background: #eef0f3; }
+.name-confirm {
+  padding: 7px 18px;
+  border-radius: 6px;
+  border: 1px solid #409eff;
+  background: #409eff;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s;
+}
+.name-confirm:hover { background: #2d8cf0; }
+
+/* ── 导出进度遮罩 ── */
+.export-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 200;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+.export-overlay.show { display: flex; }
+.exp-title { font-size: 15px; font-weight: 600; color: #fff; }
+.exp-sub { font-size: 12px; color: #ccc; }
+.exp-progress-wrap { width: 320px; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; overflow: hidden; }
+.exp-progress-fill { height: 100%; background: linear-gradient(90deg, #2d8cf0, #7c3aed); border-radius: 3px; transition: width .2s; }
+.exp-pct { font-size: 22px; font-weight: 700; font-family: monospace; color: #fff; }
+.exp-cancel-btn {
+  padding: 7px 20px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.1);
+  color: #eee;
+  font-size: 13px;
+  cursor: pointer;
+  margin-top: 6px;
+}
+.exp-cancel-btn:hover { background: rgba(255,255,255,0.2); }
+</style>
+</head>
+<body>
+
+<!-- 顶栏 -->
+<div class="header">
+  <span class="logo">视频对比</span>
+  <div class="sep"></div>
+
+  <label class="upload-btn">
+    <span class="dot a"></span>
+    <span style="flex-shrink:0">A 视频</span>
+    <span class="fname" id="fnameA">未选择</span>
+    <input type="file" accept="video/*" id="fileA">
+  </label>
+
+  <label class="upload-btn">
+    <span class="dot b"></span>
+    <span style="flex-shrink:0">B 视频</span>
+    <span class="fname" id="fnameB">未选择</span>
+    <input type="file" accept="video/*" id="fileB">
+  </label>
+
+  <div class="sep"></div>
+
+  <div class="spacer"></div>
+
+  <button class="export-btn" id="exportBtn" disabled>
+    <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+    </svg>
+    导出拼接视频
+  </button>
+</div>
+
+<!-- 偏移控制 -->
+<div class="offset-row">
+  <span class="offset-label">B 时间偏移</span>
+
+  <button class="fine-btn" data-delta="-5">−5s</button>
+  <button class="fine-btn" data-delta="-1">−1s</button>
+  <button class="fine-btn" data-delta="-0.0333">−1帧</button>
+
+  <input type="range" class="offset-slider" id="offsetSlider" min="-60" max="60" step="0.033" value="0">
+
+  <button class="fine-btn" data-delta="0.0333">+1帧</button>
+  <button class="fine-btn" data-delta="1">+1s</button>
+  <button class="fine-btn" data-delta="5">+5s</button>
+
+  <input type="number" class="offset-num-input" id="offsetNum" step="0.033" value="0" title="直接输入偏移秒数">
+  <span style="font-size:11px;color:#555">s</span>
+
+  <button class="sync-cur-btn" id="syncCurBtn" title="将当前 B 播放位置设为偏移参考点">从当前位置同步</button>
+  <button class="reset-btn" id="resetOffsetBtn">清零</button>
+</div>
+
+<!-- 视频区域 -->
+<div class="video-area">
+  <div class="panel" id="panelA">
+    <div class="panel-badge a">
+      <span class="badge-letter">A</span>
+      <input class="badge-note" id="noteA" placeholder="备注…" maxlength="30" spellcheck="false">
+    </div>
+    <div class="drop-zone" id="dropA">
+      <svg width="38" height="38" fill="none" stroke="currentColor" stroke-width="1.4" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.55-2.73A1 1 0 0121 8.13V15.87a1 1 0 01-1.45.87L15 14M3 8a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/>
+      </svg>
+      <span>拖入 A 视频 或点击上方按钮</span>
+    </div>
+    <video id="videoA" preload="metadata"></video>
+    <div class="panel-overlay">
+      <div class="panel-filename" id="panelFnameA">—</div>
+      <div class="panel-timecode" id="tcA">0:00.000</div>
+    </div>
+  </div>
+
+  <div class="gutter"></div>
+
+  <div class="panel" id="panelB">
+    <div class="panel-badge b">
+      <span class="badge-letter">B</span>
+      <input class="badge-note" id="noteB" placeholder="备注…" maxlength="30" spellcheck="false">
+    </div>
+    <div class="drop-zone" id="dropB">
+      <svg width="38" height="38" fill="none" stroke="currentColor" stroke-width="1.4" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.55-2.73A1 1 0 0121 8.13V15.87a1 1 0 01-1.45.87L15 14M3 8a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/>
+      </svg>
+      <span>拖入 B 视频 或点击上方按钮</span>
+    </div>
+    <video id="videoB" preload="metadata"></video>
+    <div class="panel-overlay">
+      <div class="panel-filename" id="panelFnameB">—</div>
+      <div class="panel-timecode" id="tcB">0:00.000</div>
+    </div>
+  </div>
+</div>
+
+<!-- 控制栏 -->
+<div class="ctrl-bar">
+  <div class="progress-track" id="progressTrack">
+    <div class="trim-region" id="trimRegion"></div>
+    <div class="progress-fill" id="progressFill" style="width:0%"></div>
+    <div class="trim-handle" id="trimHandleIn"></div>
+    <div class="trim-handle" id="trimHandleOut"></div>
+    <div class="progress-thumb" id="progressThumb" style="left:0%"></div>
+  </div>
+  <div class="trim-row">
+    <button class="trim-btn" id="btnTrimIn" title="设置入点 (I)">[I] 入点</button>
+    <button class="trim-btn" id="btnTrimOut" title="设置出点 (O)">[O] 出点</button>
+    <button class="trim-btn" id="btnTrimClear">清除裁剪</button>
+    <span class="trim-info" id="trimInfo"></span>
+    <div class="spacer"></div>
+    <span style="font-size:11px;color:#999;flex-shrink:0">速度</span>
+    <button class="speed-adj-btn" id="btnSpeedDown">−</button>
+    <span class="speed-disp" id="speedDisp">1×</span>
+    <button class="speed-adj-btn" id="btnSpeedUp">+</button>
+  </div>
+  <div class="ctrl-row">
+    <button class="cbtn" id="btnBack" title="后退 5s (J)">
+      <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg>
+    </button>
+    <button class="cbtn" id="btnPlay" title="播放/暂停 (空格)">
+      <svg id="iPlay" width="22" height="22" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      <svg id="iPause" width="22" height="22" fill="currentColor" viewBox="0 0 24 24" style="display:none"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+    </button>
+    <button class="cbtn" id="btnFwd" title="前进 5s (L)">
+      <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg>
+    </button>
+    <span class="time-txt" id="timeTxt">0:00 / 0:00</span>
+    <div class="sep" style="height:18px"></div>
+    <button class="cbtn" id="btnMute" title="静音">
+      <svg id="iVol" width="17" height="17" fill="currentColor" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+      <svg id="iMute" width="17" height="17" fill="currentColor" viewBox="0 0 24 24" style="display:none"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+    </button>
+    <div class="vol-row">
+      <input type="range" class="vol-range" id="volRange" min="0" max="1" step="0.05" value="1">
+    </div>
+  </div>
+</div>
+
+<!-- 命名对话框 -->
+<div class="name-dialog" id="nameDialog">
+  <div class="name-box">
+    <h2>导出前命名文件</h2>
+    <div>
+      <label>文件名</label>
+      <input type="text" class="name-input" id="exportNameInput" placeholder="输入文件名" spellcheck="false">
+      <span class="name-ext" id="nameExt">.mp4</span>
+    </div>
+    <div class="name-actions">
+      <button class="name-cancel" id="nameCancelBtn">取消</button>
+      <button class="name-confirm" id="nameConfirmBtn">开始导出</button>
+    </div>
+  </div>
+</div>
+
+<!-- 导出遮罩 -->
+<div class="export-overlay" id="exportOverlay">
+  <div class="exp-title">正在导出拼接视频</div>
+  <div class="exp-pct" id="expPct">0%</div>
+  <div class="exp-progress-wrap">
+    <div class="exp-progress-fill" id="expFill" style="width:0%"></div>
+  </div>
+  <div class="exp-sub" id="expSub">准备中…</div>
+  <button class="exp-cancel-btn" id="expCancelBtn">取消</button>
+</div>
+
+<script>
+// ── 元素引用 ──
+const vA = document.getElementById('videoA');
+const vB = document.getElementById('videoB');
+const dropA = document.getElementById('dropA');
+const dropB = document.getElementById('dropB');
+const fileA = document.getElementById('fileA');
+const fileB = document.getElementById('fileB');
+const fnameA = document.getElementById('fnameA');
+const fnameB = document.getElementById('fnameB');
+const panelFnameA = document.getElementById('panelFnameA');
+const panelFnameB = document.getElementById('panelFnameB');
+const tcA = document.getElementById('tcA');
+const tcB = document.getElementById('tcB');
+const progressTrack = document.getElementById('progressTrack');
+const progressFill = document.getElementById('progressFill');
+const progressThumb = document.getElementById('progressThumb');
+const btnPlay = document.getElementById('btnPlay');
+const iPlay = document.getElementById('iPlay');
+const iPause = document.getElementById('iPause');
+const btnBack = document.getElementById('btnBack');
+const btnFwd = document.getElementById('btnFwd');
+const timeTxt = document.getElementById('timeTxt');
+const btnMute = document.getElementById('btnMute');
+const iVol = document.getElementById('iVol');
+const iMute = document.getElementById('iMute');
+const volRange = document.getElementById('volRange');
+const exportBtn = document.getElementById('exportBtn');
+const offsetSlider = document.getElementById('offsetSlider');
+const offsetNum = document.getElementById('offsetNum');
+const syncCurBtn = document.getElementById('syncCurBtn');
+const resetOffsetBtn = document.getElementById('resetOffsetBtn');
+const exportOverlay = document.getElementById('exportOverlay');
+const expPct = document.getElementById('expPct');
+const expFill = document.getElementById('expFill');
+const expSub = document.getElementById('expSub');
+const expCancelBtn = document.getElementById('expCancelBtn');
+
+// ── 状态 ──
+let loadedA = false, loadedB = false;
+let playing = false;
+let bOffset = 0;      // B 相对 A 的偏移（秒），正值 = B 晚于 A
+let isSyncing = false;
+let isDragging = false;
+let exportCancel = false;
+let animId = null;
+
+// ── 工具函数 ──
+function fmt(t) {
+  if (!isFinite(t) || t < 0) t = 0;
+  const m = Math.floor(t / 60);
+  const s = Math.floor(t % 60).toString().padStart(2, '0');
+  const ms = Math.floor((t % 1) * 1000).toString().padStart(3, '0');
+  return `${m}:${s}.${ms}`;
+}
+function fmtShort(t) {
+  if (!isFinite(t) || t < 0) return '0:00';
+  const m = Math.floor(t / 60);
+  const s = Math.floor(t % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+// ── 加载视频 ──
+function loadVid(vid, file, dropEl, shortName, panelName, isA) {
+  const prev = vid.src;
+  if (prev) URL.revokeObjectURL(prev);
+  vid.src = URL.createObjectURL(file);
+  vid.load();
+  dropEl.style.display = 'none';
+  vid.classList.add('loaded');
+  const n = file.name;
+  shortName.textContent = n;
+  panelName.textContent = n;
+  if (isA) { loadedA = true; } else { loadedB = true; }
+  if (loadedA && loadedB) exportBtn.disabled = false;
+  vid.playbackRate = SPEEDS[speedIdx] || 1;
+  updateTrimUI();
+}
+
+function setupUpload(inputEl, vid, dropEl, shortName, panelName, isA) {
+  inputEl.addEventListener('change', e => {
+    if (e.target.files[0]) loadVid(vid, e.target.files[0], dropEl, shortName, panelName, isA);
+  });
+  dropEl.addEventListener('dragover', e => { e.preventDefault(); dropEl.classList.add('drag-over'); });
+  dropEl.addEventListener('dragleave', () => dropEl.classList.remove('drag-over'));
+  dropEl.addEventListener('drop', e => {
+    e.preventDefault();
+    dropEl.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (f && f.type.startsWith('video/')) loadVid(vid, f, dropEl, shortName, panelName, isA);
+  });
+  dropEl.addEventListener('click', () => inputEl.click());
+}
+setupUpload(fileA, vA, dropA, fnameA, panelFnameA, true);
+setupUpload(fileB, vB, dropB, fnameB, panelFnameB, false);
+
+// ── 偏移控制 ──
+function setOffset(val) {
+  bOffset = parseFloat(val.toFixed(3));
+  offsetSlider.value = clamp(bOffset, -60, 60);
+  offsetNum.value = bOffset.toFixed(3);
+  // 同步 B 位置
+  if (loadedA && loadedB) {
+    const target = clamp(vA.currentTime + bOffset, 0, vB.duration || 0);
+    vB.currentTime = target;
+  }
+}
+
+offsetSlider.addEventListener('input', () => setOffset(parseFloat(offsetSlider.value)));
+offsetNum.addEventListener('change', () => setOffset(parseFloat(offsetNum.value) || 0));
+offsetNum.addEventListener('keydown', e => { if (e.key === 'Enter') setOffset(parseFloat(offsetNum.value) || 0); });
+
+document.querySelectorAll('.fine-btn').forEach(btn => {
+  btn.addEventListener('click', () => setOffset(bOffset + parseFloat(btn.dataset.delta)));
+});
+
+syncCurBtn.addEventListener('click', () => {
+  if (!loadedA || !loadedB) return;
+  setOffset(vB.currentTime - vA.currentTime);
+});
+
+resetOffsetBtn.addEventListener('click', () => setOffset(0));
+
+// ── 播放同步 ──
+vA.addEventListener('timeupdate', () => {
+  if (!isSyncing && loadedB && !isDragging) {
+    const target = vA.currentTime + bOffset;
+    if (Math.abs(vB.currentTime - target) > 0.2) {
+      isSyncing = true;
+      vB.currentTime = clamp(target, 0, vB.duration || 0);
+      isSyncing = false;
+    }
+  }
+});
+
+// ── 播放 / 暂停 ──
+function setPlaying(val) {
+  playing = val;
+  iPlay.style.display = val ? 'none' : 'inline';
+  iPause.style.display = val ? 'inline' : 'none';
+}
+
+function doPlay() {
+  if (loadedA) vA.play().catch(() => {});
+  if (loadedB) {
+    const target = loadedA ? vA.currentTime + bOffset : vB.currentTime;
+    vB.currentTime = clamp(target, 0, vB.duration || 0);
+    vB.play().catch(() => {});
+  }
+  setPlaying(true);
+}
+function doPause() {
+  if (loadedA) vA.pause();
+  if (loadedB) vB.pause();
+  setPlaying(false);
+}
+function togglePlay() {
+  if (!loadedA && !loadedB) return;
+  playing ? doPause() : doPlay();
+}
+
+btnPlay.addEventListener('click', togglePlay);
+
+vA.addEventListener('ended', () => { if (!loadedB || vB.ended) setPlaying(false); });
+vB.addEventListener('ended', () => { if (!loadedA || vA.ended) setPlaying(false); });
+
+// ── 跳转 ──
+function seekDelta(delta) {
+  if (loadedA) vA.currentTime = clamp(vA.currentTime + delta, 0, vA.duration || 0);
+  if (loadedB) vB.currentTime = clamp((loadedA ? vA.currentTime : vB.currentTime + delta) + bOffset, 0, vB.duration || 0);
+}
+function seekPct(pct) {
+  const dur = (loadedA ? vA.duration : loadedB ? vB.duration : 0) || 0;
+  const t = pct * dur;
+  if (loadedA) vA.currentTime = t;
+  if (loadedB) vB.currentTime = clamp(t + bOffset, 0, vB.duration || 0);
+}
+
+btnBack.addEventListener('click', () => seekDelta(-5));
+btnFwd.addEventListener('click', () => seekDelta(5));
+
+// ── 进度条 ──
+progressTrack.addEventListener('mousedown', e => {
+  isDragging = true;
+  const pct = (e.clientX - progressTrack.getBoundingClientRect().left) / progressTrack.offsetWidth;
+  seekPct(clamp(pct, 0, 1));
+  const wasPlaying = playing;
+  doPause();
+  function onMove(ev) {
+    const p = clamp((ev.clientX - progressTrack.getBoundingClientRect().left) / progressTrack.offsetWidth, 0, 1);
+    seekPct(p);
+  }
+  function onUp() {
+    isDragging = false;
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('mouseup', onUp);
+    if (wasPlaying) doPlay();
+  }
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+});
+
+// ── 音量 ──
+function applyMute(val) {
+  vA.muted = val;
+  iVol.style.display = val ? 'none' : 'inline';
+  iMute.style.display = val ? 'inline' : 'none';
+}
+btnMute.addEventListener('click', () => applyMute(!vA.muted));
+volRange.addEventListener('input', () => {
+  vA.volume = volRange.value;
+  applyMute(+volRange.value === 0);
+});
+
+// ── 速度 ──
+const SPEEDS = [0.1, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
+let speedIdx = SPEEDS.indexOf(1);
+const speedDisp = document.getElementById('speedDisp');
+const btnSpeedDown = document.getElementById('btnSpeedDown');
+const btnSpeedUp   = document.getElementById('btnSpeedUp');
+
+function applySpeed(idx) {
+  speedIdx = Math.max(0, Math.min(SPEEDS.length - 1, idx));
+  const s = SPEEDS[speedIdx];
+  vA.playbackRate = s;
+  vB.playbackRate = s;
+  speedDisp.textContent = s + '×';
+  btnSpeedDown.disabled = speedIdx === 0;
+  btnSpeedUp.disabled   = speedIdx === SPEEDS.length - 1;
+}
+btnSpeedDown.addEventListener('click', () => applySpeed(speedIdx - 1));
+btnSpeedUp.addEventListener('click',   () => applySpeed(speedIdx + 1));
+applySpeed(speedIdx);
+
+// ── 裁剪 ──
+let trimIn  = null;   // A 的时间轴（秒），null = 未设
+let trimOut = null;
+
+const trimRegion    = document.getElementById('trimRegion');
+const trimHandleIn  = document.getElementById('trimHandleIn');
+const trimHandleOut = document.getElementById('trimHandleOut');
+const trimInfo      = document.getElementById('trimInfo');
+const btnTrimIn     = document.getElementById('btnTrimIn');
+const btnTrimOut    = document.getElementById('btnTrimOut');
+const btnTrimClear  = document.getElementById('btnTrimClear');
+
+function updateTrimUI() {
+  const master = loadedA ? vA : loadedB ? vB : null;
+  const dur = master ? (master.duration || 0) : 0;
+  const hasIn  = trimIn  !== null;
+  const hasOut = trimOut !== null;
+
+  btnTrimIn.classList.toggle('set', hasIn);
+  btnTrimOut.classList.toggle('set', hasOut);
+
+  if (!dur || (!hasIn && !hasOut)) {
+    trimRegion.style.display   = 'none';
+    trimHandleIn.style.display  = 'none';
+    trimHandleOut.style.display = 'none';
+    trimInfo.textContent = '';
+    return;
+  }
+
+  const inT  = hasIn  ? trimIn  : 0;
+  const outT = hasOut ? trimOut : dur;
+  const inPct  = inT  / dur * 100;
+  const outPct = outT / dur * 100;
+
+  trimRegion.style.display = 'block';
+  trimRegion.style.left  = inPct + '%';
+  trimRegion.style.width = (outPct - inPct) + '%';
+
+  trimHandleIn.style.display  = hasIn  ? 'block' : 'none';
+  trimHandleOut.style.display = hasOut ? 'block' : 'none';
+  if (hasIn)  trimHandleIn.style.left  = inPct  + '%';
+  if (hasOut) trimHandleOut.style.left = outPct + '%';
+
+  const inStr  = hasIn  ? fmtShort(trimIn)  : '0:00';
+  const outStr = hasOut ? fmtShort(trimOut) : fmtShort(dur);
+  trimInfo.textContent = `${inStr} → ${outStr}  (${fmtShort(outT - inT)})`;
+}
+
+function setTrimIn(t) {
+  trimIn = parseFloat(t.toFixed(3));
+  if (trimOut !== null && trimIn >= trimOut) trimOut = null;
+  updateTrimUI();
+}
+function setTrimOut(t) {
+  trimOut = parseFloat(t.toFixed(3));
+  if (trimIn !== null && trimOut <= trimIn) trimIn = null;
+  updateTrimUI();
+}
+function clearTrim() {
+  trimIn = null; trimOut = null;
+  updateTrimUI();
+}
+
+btnTrimIn.addEventListener('click', () => {
+  const master = loadedA ? vA : loadedB ? vB : null;
+  if (master) setTrimIn(master.currentTime);
+});
+btnTrimOut.addEventListener('click', () => {
+  const master = loadedA ? vA : loadedB ? vB : null;
+  if (master) setTrimOut(master.currentTime);
+});
+btnTrimClear.addEventListener('click', clearTrim);
+
+// 拖拽裁剪手柄
+function makeTrimDrag(handle, setter) {
+  handle.addEventListener('mousedown', e => {
+    e.stopPropagation();
+    const track = progressTrack;
+    const onMove = ev => {
+      const rect = track.getBoundingClientRect();
+      const pct  = clamp((ev.clientX - rect.left) / rect.width, 0, 1);
+      const master = loadedA ? vA : loadedB ? vB : null;
+      if (master) setter(pct * (master.duration || 0));
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  });
+}
+makeTrimDrag(trimHandleIn,  setTrimIn);
+makeTrimDrag(trimHandleOut, setTrimOut);
+
+// ── 键盘 ──
+document.addEventListener('keydown', e => {
+  const tag = document.activeElement.tagName;
+  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+  if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+  if (e.code === 'ArrowLeft') { e.preventDefault(); seekDelta(e.altKey ? -1/30 : -1); }
+  if (e.code === 'ArrowRight') { e.preventDefault(); seekDelta(e.altKey ? 1/30 : 1); }
+  if (e.code === 'KeyJ') seekDelta(-5);
+  if (e.code === 'KeyL') seekDelta(5);
+  if (e.code === 'KeyK') togglePlay();
+  if (e.code === 'KeyI') { const m = loadedA ? vA : loadedB ? vB : null; if (m) setTrimIn(m.currentTime); }
+  if (e.code === 'KeyO') { const m = loadedA ? vA : loadedB ? vB : null; if (m) setTrimOut(m.currentTime); }
+});
+
+// ── 动画更新 ──
+function tick() {
+  // 进度条（以 A 为主，如 A 未加载则用 B）
+  const master = loadedA ? vA : loadedB ? vB : null;
+  if (master) {
+    const t = master.currentTime;
+    const dur = master.duration || 0;
+    const pct = dur ? (t / dur * 100) : 0;
+    progressFill.style.width = pct + '%';
+    progressThumb.style.left = pct + '%';
+    timeTxt.textContent = `${fmtShort(t)} / ${fmtShort(dur)}`;
+    // 到达出点时自动暂停
+    if (playing && trimOut !== null && t >= trimOut) {
+      doPause();
+      master.currentTime = trimOut;
+    }
+  }
+  if (loadedA) tcA.textContent = fmt(vA.currentTime);
+  if (loadedB) tcB.textContent = fmt(vB.currentTime);
+  animId = requestAnimationFrame(tick);
+}
+animId = requestAnimationFrame(tick);
+
+// ══════════════════════════════════════════
+// 导出功能
+// ══════════════════════════════════════════
+// ── 命名对话框 ──
+const nameDialog = document.getElementById('nameDialog');
+const exportNameInput = document.getElementById('exportNameInput');
+const nameCancelBtn = document.getElementById('nameCancelBtn');
+const nameConfirmBtn = document.getElementById('nameConfirmBtn');
+
+function stripExt(name) { return name.replace(/\.[^.]+$/, ''); }
+
+exportBtn.addEventListener('click', () => {
+  if (!loadedA || !loadedB) return;
+  // 预填默认名：A文件名 + B文件名
+  const defName = `${stripExt(panelFnameA.textContent)}_vs_${stripExt(panelFnameB.textContent)}`;
+  exportNameInput.value = defName;
+  nameDialog.classList.add('show');
+  setTimeout(() => { exportNameInput.focus(); exportNameInput.select(); }, 50);
+});
+
+nameCancelBtn.addEventListener('click', () => nameDialog.classList.remove('show'));
+nameDialog.addEventListener('click', e => { if (e.target === nameDialog) nameDialog.classList.remove('show'); });
+exportNameInput.addEventListener('keydown', e => { if (e.key === 'Enter') nameConfirmBtn.click(); if (e.key === 'Escape') nameDialog.classList.remove('show'); });
+
+nameConfirmBtn.addEventListener('click', () => {
+  nameDialog.classList.remove('show');
+  startExport(exportNameInput.value.trim() || `对比_${Date.now()}`);
+});
+
+expCancelBtn.addEventListener('click', () => { exportCancel = true; });
+
+async function startExport(exportFileName) {
+  if (!loadedA || !loadedB) return;
+
+  // 确定导出范围：以入点/出点为准，B 同步位置 = A 时间 + bOffset
+  const startA = trimIn !== null ? trimIn : 0;
+  const startB = clamp(startA + bOffset, 0, vB.duration || 0);
+  const durA = (vA.duration || 0) - startA;
+  const durB = (vB.duration || 0) - startB;
+  const rawDur = Math.min(durA, durB);
+  const exportDur = (trimOut !== null && trimIn !== null)
+    ? Math.min(trimOut - trimIn, rawDur)
+    : rawDur;
+
+  if (exportDur <= 0) {
+    alert('导出范围无效，请检查入点/出点设置或偏移量。');
+    return;
+  }
+
+  // 画布尺寸（等高缩放）
+  const wA = vA.videoWidth || 640;
+  const hA = vA.videoHeight || 480;
+  const wB = vB.videoWidth || 640;
+  const hB = vB.videoHeight || 480;
+  const canvasH = Math.max(hA, hB, 480);
+  const scaleA = canvasH / hA;
+  const scaleB = canvasH / hB;
+  const drawWA = Math.round(wA * scaleA);
+  const drawWB = Math.round(wB * scaleB);
+  const canvasW = drawWA + drawWB;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = canvasW;
+  canvas.height = canvasH;
+  const ctx = canvas.getContext('2d');
+
+  // 检查支持的编码格式，优先 MP4/MOV
+  const mimeTypes = [
+    'video/mp4;codecs=h264,aac',
+    'video/mp4;codecs=avc1',
+    'video/mp4',
+    'video/webm;codecs=vp9',
+    'video/webm;codecs=vp8',
+    'video/webm',
+  ];
+  const mimeType = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm';
+  const fileExt = mimeType.startsWith('video/mp4') ? 'mp4' : 'webm';
+  document.getElementById('nameExt').textContent = '.' + fileExt;
+
+  // 流 = 视频（画布）+ 音频（A 的音频）
+  const canvasStream = canvas.captureStream(30);
+  try {
+    // 尝试添加 A 的音频轨道
+    const audioCtx = new AudioContext();
+    const srcA = audioCtx.createMediaElementSource(vA);
+    const dest = audioCtx.createMediaStreamDestination();
+    srcA.connect(dest);
+    srcA.connect(audioCtx.destination); // 保持监听
+    dest.stream.getAudioTracks().forEach(t => canvasStream.addTrack(t));
+  } catch (_) { /* 没有音频也可以 */ }
+
+  const recorder = new MediaRecorder(canvasStream, {
+    mimeType,
+    videoBitsPerSecond: 80_000_000,  // 80 Mbps 高质量
+  });
+
+  const chunks = [];
+  recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+
+  exportCancel = false;
+
+  // 显示遮罩
+  exportOverlay.classList.add('show');
+  expPct.textContent = '0%';
+  expFill.style.width = '0%';
+  expSub.textContent = `正在导出 ${fmtShort(exportDur)} 的视频…`;
+
+  // 暂停当前播放
+  doPause();
+
+  // 定位视频起点
+  await seekBoth(startA, startB);
+
+  // 绘制帧的循环（在录制开始前先等待一帧）
+  let frameId;
+  function drawFrame() {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvasW, canvasH);
+    // A：居中绘制在左半
+    const offYA = Math.round((canvasH - hA * scaleA) / 2);
+    ctx.drawImage(vA, 0, offYA, drawWA, hA * scaleA);
+    // B：居中绘制在右半
+    const offYB = Math.round((canvasH - hB * scaleB) / 2);
+    ctx.drawImage(vB, drawWA, offYB, drawWB, hB * scaleB);
+    // 标签（含备注）
+    drawLabel(ctx, 'A', document.getElementById('noteA').value, 12, 12, '#4a9eff');
+    drawLabel(ctx, 'B', document.getElementById('noteB').value, drawWA + 12, 12, '#ff6b6b');
+    frameId = requestAnimationFrame(drawFrame);
+  }
+  function drawLabel(ctx, letter, note, x, y, color) {
+    const fontSize = Math.round(canvasH * 0.022);
+    ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
+    const noteText = note ? `  ${note}` : '';
+    const fullText = letter + noteText;
+    const letterW = ctx.measureText(letter).width;
+    const totalW = ctx.measureText(fullText).width;
+    const padX = fontSize * 0.4, padY = fontSize * 0.3;
+    const boxH = fontSize + padY * 2;
+    // 字母色块
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, letterW + padX * 2, boxH);
+    // 备注底色
+    if (noteText) {
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(x + letterW + padX * 2, y, totalW - letterW + padX, boxH);
+    }
+    // 字母
+    ctx.fillStyle = '#fff';
+    ctx.fillText(letter, x + padX, y + padY + fontSize * 0.85);
+    // 备注文字
+    if (noteText) {
+      ctx.fillStyle = '#eee';
+      ctx.font = `${fontSize}px system-ui, sans-serif`;
+      ctx.fillText(noteText.trim(), x + letterW + padX * 2 + padX * 0.5, y + padY + fontSize * 0.85);
+    }
+  }
+
+  // 录制开始前已通过 seekBoth 定位到对齐起点，直接开录并播放
+  frameId = requestAnimationFrame(drawFrame);
+  recorder.start(200);  // 每 200ms 收集一次数据
+  vA.play().catch(() => {});
+  vB.play().catch(() => {});
+
+  // 监控进度
+  const startTime = performance.now();
+  await new Promise(resolve => {
+    function checkProgress() {
+      if (exportCancel) { resolve('cancel'); return; }
+      const elapsed = (performance.now() - startTime) / 1000;
+      const pct = Math.min(100, (elapsed / exportDur) * 100);
+      expPct.textContent = Math.round(pct) + '%';
+      expFill.style.width = pct + '%';
+      if (elapsed >= exportDur || (vA.ended && vB.ended)) {
+        resolve('done');
+      } else {
+        setTimeout(checkProgress, 200);
+      }
+    }
+    checkProgress();
+  }).then(async reason => {
+    cancelAnimationFrame(frameId);
+    vA.pause(); vB.pause();
+    recorder.stop();
+
+    if (reason === 'cancel') {
+      exportOverlay.classList.remove('show');
+      return;
+    }
+
+    expSub.textContent = '处理中，请稍候…';
+    expPct.textContent = '100%';
+    expFill.style.width = '100%';
+
+    await new Promise(r => { recorder.onstop = r; });
+
+    const blob = new Blob(chunks, { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${exportFileName}.${fileExt}`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+    exportOverlay.classList.remove('show');
+  });
+}
+
+function seekBoth(tA, tB) {
+  return new Promise(resolve => {
+    let doneA = false, doneB = false;
+    function check() { if (doneA && doneB) resolve(); }
+    vA.addEventListener('seeked', () => { doneA = true; check(); }, {once: true});
+    vB.addEventListener('seeked', () => { doneB = true; check(); }, {once: true});
+    vA.currentTime = tA;
+    vB.currentTime = tB;
+  });
+}
+</script>
+</body>
+</html>
