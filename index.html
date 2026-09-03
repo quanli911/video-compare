@@ -37,10 +37,7 @@ body{
 }
 .export-btn:hover{background:#2d8cf0;border-color:#2d8cf0}
 .export-btn:disabled{background:#e8eaed;border-color:#d0d3d8;color:#bbb;cursor:not-allowed}
-.ver-select{
-  padding:4px 8px;border-radius:5px;border:1px solid #d8d9dd;
-  background:#f7f8fa;color:#666;font-size:11px;cursor:pointer;outline:none;
-}
+.ver-tag{font-size:11px;color:#aaa;white-space:nowrap}
 
 /* ── VIDEO GRID ── */
 .video-grid{
@@ -316,7 +313,7 @@ body{
   </label>
   <button class="layout-btn" id="layoutBtn" style="display:none">布局</button>
   <div class="spacer"></div>
-  <select class="ver-select" id="verSelect"></select>
+  <span class="ver-tag" id="verTag"></span>
   <div class="sep"></div>
   <button class="export-btn" id="exportBtn" disabled>
     <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
@@ -484,18 +481,7 @@ function getAreaNames(areasStr) {
 // ══════════════════════════════════════════════
 // VERSION SELECTOR
 // ══════════════════════════════════════════════
-const verSelect = document.getElementById('verSelect');
-VERSIONS.forEach(v => {
-  const opt = document.createElement('option');
-  opt.value = v.file;
-  opt.textContent = `${v.ver}  ${v.desc}`;
-  opt.selected = v.ver === VERSION;
-  verSelect.appendChild(opt);
-});
-verSelect.addEventListener('change', () => {
-  const cur = VERSIONS.find(v => v.ver === VERSION);
-  if (verSelect.value !== cur.file) window.location.href = verSelect.value;
-});
+document.getElementById('verTag').textContent = VERSION;
 
 // ══════════════════════════════════════════════
 // TIMELINE MATH
