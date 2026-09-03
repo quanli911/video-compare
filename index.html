@@ -1224,8 +1224,15 @@ async function startExport(exportFileName) {
                   typeof VideoFrame !== 'undefined' &&
                   typeof loaded[0].el.requestVideoFrameCallback === 'function';
   if (canFast) {
+    // Load mp4-muxer with timeout + cancel support (import itself can hang)
     let Mux = null;
-    try { Mux = await import('https://cdn.jsdelivr.net/npm/mp4-muxer@4/build/mp4-muxer.js'); } catch(_) {}
+    setProgress(0, '加载编码器…');
+    await Promise.race([
+      import('https://cdn.jsdelivr.net/npm/mp4-muxer@4/build/mp4-muxer.js').then(m => { Mux = m; }).catch(() => {}),
+      new Promise(r => setTimeout(r, 6000)),                                        // 6s timeout → slow path
+      new Promise(r => { const t = setInterval(() => { if (exportCancel) { clearInterval(t); r(); } }, 100); }),
+    ]);
+    if (exportCancel) { overlay.classList.remove('show'); return; }
     if (Mux) {
       setProgress(0, `快速导出中 (4× 加速)… 约 ${fmtShort(exportDur/4)} 完成`);
       const muxTarget = new Mux.ArrayBufferTarget();
