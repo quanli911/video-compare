@@ -2,718 +2,339 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>视频对比工具</title>
 <style>
-html { background: #f2f3f5; }
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  background: #f2f3f5;
-  color: #1a1a1a;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  display:flex;flex-direction:column;height:100vh;overflow:hidden;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  background:#eef0f3;color:#1a1a1a;font-size:13px;
 }
 
-/* ── 顶栏 ── */
-.header {
-  flex: 0 0 auto;
-  background: #ffffff;
-  border-bottom: 1px solid #e2e4e8;
-  padding: 8px 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  min-height: 48px;
+/* ── HEADER ── */
+.header{
+  flex:0 0 auto;background:#fff;border-bottom:1px solid #e2e4e8;
+  padding:0 14px;display:flex;align-items:center;gap:8px;height:46px;
+}
+.logo{font-size:13px;font-weight:700;color:#111;white-space:nowrap}
+.sep{width:1px;height:20px;background:#e0e2e6;flex-shrink:0}
+.spacer{flex:1}
+.hdr-btn{
+  display:flex;align-items:center;gap:5px;padding:5px 11px;
+  border-radius:6px;border:1px solid #d8d9dd;background:#f7f8fa;
+  color:#444;font-size:12px;cursor:pointer;white-space:nowrap;
+  transition:border-color .12s,background .12s;
+}
+.hdr-btn:hover{border-color:#b0b3bb;background:#eef0f3}
+.hdr-btn input{display:none}
+.export-btn{
+  display:flex;align-items:center;gap:6px;padding:6px 14px;
+  border-radius:6px;border:1px solid #409eff;background:#409eff;
+  color:#fff;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;
+  transition:background .12s;
+}
+.export-btn:hover{background:#2d8cf0;border-color:#2d8cf0}
+.export-btn:disabled{background:#e8eaed;border-color:#d0d3d8;color:#bbb;cursor:not-allowed}
+.ver-select{
+  padding:4px 8px;border-radius:5px;border:1px solid #d8d9dd;
+  background:#f7f8fa;color:#666;font-size:11px;cursor:pointer;outline:none;
 }
 
-.logo { font-size: 13px; font-weight: 700; color: #111; white-space: nowrap; }
-
-.sep { width: 1px; height: 22px; background: #e0e0e0; flex-shrink: 0; }
-
-.upload-btn {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 5px 11px;
-  border-radius: 6px;
-  border: 1px solid #d8d9dd;
-  background: #f7f8fa;
-  color: #444;
-  font-size: 12px;
-  cursor: pointer;
-  transition: border-color .15s, background .15s;
-  max-width: 220px;
-  white-space: nowrap;
-  overflow: hidden;
+/* ── VIDEO GRID ── */
+.video-grid{
+  flex:1 1 auto;min-height:0;padding:8px;
+  background:#eef0f3;position:relative;overflow:hidden;
+  display:flex;
 }
-.upload-btn:hover { border-color: #b0b3bb; background: #eef0f3; }
-.dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.dot.a { background: #2d8cf0; }
-.dot.b { background: #f56c6c; }
-.fname {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 130px;
-  font-size: 11px;
-  color: #999;
-}
-.upload-btn input { display: none; }
+.video-grid.has-videos{display:grid;gap:7px}
 
-.spacer { flex: 1; }
-
-.export-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  border-radius: 6px;
-  border: 1px solid #409eff;
-  background: #409eff;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background .15s, border-color .15s;
-  white-space: nowrap;
+/* Empty state */
+.empty-zone{
+  display:flex;align-items:center;justify-content:center;
+  width:100%;height:100%;
 }
-.export-btn:hover { background: #2d8cf0; border-color: #2d8cf0; }
-.export-btn:disabled { border-color: #d0d3d8; background: #e8eaed; color: #bbb; cursor: not-allowed; }
-
-/* ── 偏移控制行 ── */
-.offset-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+.empty-import{
+  display:flex;flex-direction:column;align-items:center;gap:14px;
+  padding:52px 80px;border:2px dashed #c8cbd0;border-radius:18px;
+  cursor:pointer;color:#aaa;background:#fff;
+  transition:border-color .18s,color .18s,background .18s;
 }
+.empty-import:hover{border-color:#409eff;color:#409eff;background:#f0f8ff}
+.empty-import input{display:none}
+.empty-plus{font-size:54px;font-weight:200;line-height:1}
+.empty-text{font-size:14px;font-weight:500}
+.empty-hint{font-size:11px;opacity:.65}
 
-.offset-label { font-size: 12px; color: #888; white-space: nowrap; }
+/* Vid tile */
+.vid-tile{
+  background:#fff;border-radius:9px;
+  box-shadow:0 1px 5px rgba(0,0,0,.07);
+  display:flex;flex-direction:column;overflow:hidden;
+  min-height:0;position:relative;
+  transition:box-shadow .12s;
+}
+.vid-tile.is-dragging{opacity:.35;box-shadow:none}
+.vid-tile.drop-target{box-shadow:0 0 0 2.5px #409eff,0 4px 18px rgba(64,158,255,.18)}
 
-.fine-btn {
-  padding: 3px 8px;
-  border-radius: 4px;
-  border: 1px solid #d8d9dd;
-  background: #fff;
-  color: #555;
-  font-size: 11px;
-  cursor: pointer;
-  transition: background .12s;
-  white-space: nowrap;
+.tile-header{
+  flex:0 0 auto;display:flex;align-items:center;gap:7px;
+  padding:6px 9px;border-bottom:1px solid #f0f2f4;
+  cursor:grab;user-select:none;background:#fff;
 }
-.fine-btn:hover { background: #eef0f3; color: #111; }
+.tile-header:active{cursor:grabbing}
+.tile-badge{
+  flex-shrink:0;font-size:11px;font-weight:800;letter-spacing:.5px;
+  color:#fff;padding:2px 8px;border-radius:4px;line-height:16px;
+}
+.tile-note{
+  flex:1;border:none;outline:none;background:transparent;
+  font-size:12px;color:#555;cursor:text;min-width:0;
+}
+.tile-note::placeholder{color:#ccc}
+.tile-close{
+  flex-shrink:0;background:none;border:none;color:#ccc;
+  font-size:16px;cursor:pointer;padding:0 2px;line-height:1;
+  border-radius:3px;transition:color .1s;
+}
+.tile-close:hover{color:#f56c6c}
 
-.offset-slider {
-  -webkit-appearance: none;
-  appearance: none;
-  flex: 1;
-  min-width: 80px;
-  max-width: 400px;
-  height: 4px;
-  background: #d8d9dd;
-  border-radius: 2px;
-  outline: none;
-  cursor: pointer;
+.tile-body{
+  flex:1 1 auto;min-height:0;position:relative;background:#111;
 }
-.offset-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 14px; height: 14px;
-  border-radius: 50%;
-  background: #f56c6c;
-  cursor: pointer;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+.tile-body video{width:100%;height:100%;object-fit:contain;display:block}
+.tile-drop-zone{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:8px;
+  background:#f7f8fa;cursor:pointer;color:#bbb;font-size:12px;
+  transition:background .12s,color .12s;
 }
+.tile-drop-zone:hover,.tile-drop-zone.dz-over{background:#ecf5ff;color:#409eff}
+.tile-drop-zone.hidden{display:none}
+.tile-overlay{
+  position:absolute;bottom:0;left:0;right:0;
+  padding:22px 9px 7px;
+  background:linear-gradient(transparent,rgba(0,0,0,.55));
+  pointer-events:none;
+}
+.tile-fname{font-size:10px;color:#ccc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile-tc{font-size:10px;font-family:monospace;color:#aaa;margin-top:1px}
 
-.offset-num-input {
-  width: 72px;
-  padding: 3px 6px;
-  border-radius: 5px;
-  border: 1px solid #d8d9dd;
-  background: #fff;
-  color: #d46b00;
-  font-size: 12px;
-  font-family: monospace;
-  text-align: right;
-  outline: none;
-  font-weight: 600;
+/* Layout button overlay */
+.layout-btn{
+  position:absolute;top:12px;right:12px;
+  background:rgba(255,255,255,.92);border:1px solid #e0e2e6;
+  border-radius:6px;padding:4px 11px;font-size:11px;color:#555;
+  cursor:pointer;z-index:10;
+  transition:background .1s,color .1s;white-space:nowrap;
+  box-shadow:0 1px 4px rgba(0,0,0,.08);
 }
-.offset-num-input:focus { border-color: #409eff; }
+.layout-btn:hover{background:#fff;color:#111}
 
-.sync-cur-btn {
-  padding: 4px 10px;
-  border-radius: 5px;
-  border: 1px solid #d8d9dd;
-  background: #fff;
-  color: #555;
-  font-size: 11px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background .12s;
+/* ── CTRL BAR ── */
+.ctrl-bar{
+  flex:0 0 auto;background:#fff;
+  border-top:1px solid #e2e4e8;padding:7px 14px 8px;
 }
-.sync-cur-btn:hover { background: #eef0f3; color: #111; }
-
-.reset-btn {
-  padding: 4px 10px;
-  border-radius: 5px;
-  border: 1px solid #d8d9dd;
-  background: #fff;
-  color: #999;
-  font-size: 11px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background .12s;
+.progress-track{
+  position:relative;height:5px;background:#e0e2e6;
+  border-radius:3px;cursor:pointer;margin-bottom:6px;
+  transition:height .1s;
 }
-.reset-btn:hover { background: #eef0f3; color: #555; }
-
-/* ── 视频区域 ── */
-.video-area {
-  flex: 1 1 auto;
-  display: flex;
-  min-height: 0;
-  background: #2a2a2a;
+.progress-track:hover{height:7px}
+.progress-fill{
+  height:100%;background:linear-gradient(90deg,#2d8cf0,#7c3aed);
+  border-radius:3px;pointer-events:none;
 }
-
-.panel {
-  flex: 1;
-  position: relative;
-  background: #000;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  min-width: 0;
-  overflow: hidden;
+.progress-thumb{
+  position:absolute;top:50%;left:0%;width:13px;height:13px;
+  background:#fff;border:2px solid #2d8cf0;border-radius:50%;
+  transform:translate(-50%,-50%);pointer-events:none;opacity:0;
+  transition:opacity .12s;box-shadow:0 1px 4px rgba(0,0,0,.2);
 }
-
-.drop-zone {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  border: 2px dashed #555;
-  color: #888;
-  font-size: 13px;
-  cursor: pointer;
-  transition: border-color .2s, color .2s;
-  text-align: center;
-  padding: 20px;
-  background: #1c1c1c;
+.progress-track:hover .progress-thumb{opacity:1}
+.trim-region{
+  position:absolute;top:-1px;bottom:-1px;
+  background:rgba(45,140,240,.12);
+  border-left:2px solid rgba(45,140,240,.75);
+  border-right:2px solid rgba(45,140,240,.75);
+  pointer-events:none;display:none;
 }
-.drop-zone:hover, .drop-zone.drag-over {
-  border-color: #888;
-  color: #bbb;
+.trim-handle{
+  position:absolute;top:50%;width:14px;height:26px;
+  transform:translate(-50%,-50%);cursor:ew-resize;z-index:10;display:none;
+}
+.trim-handle::after{
+  content:'';position:absolute;left:50%;top:0;bottom:0;
+  width:4px;background:#2d8cf0;transform:translateX(-50%);
+  border-radius:2px;box-shadow:0 0 0 1.5px #fff,0 0 5px rgba(45,140,240,.4);
+}
+.trim-row{display:flex;align-items:center;gap:5px;margin-bottom:5px}
+.trim-btn{
+  padding:2px 8px;border-radius:4px;border:1px solid #d8d9dd;
+  background:#f7f8fa;color:#555;font-size:11px;cursor:pointer;
+  white-space:nowrap;line-height:18px;transition:background .1s;
+}
+.trim-btn:hover{background:#eef0f3}
+.trim-btn.set{border-color:#2d8cf0;background:#deeeff;color:#1a6ec9;font-weight:600}
+.trim-info{font-size:11px;font-family:monospace;color:#888;white-space:nowrap}
+.speed-adj-btn{
+  width:22px;height:22px;border-radius:4px;border:1px solid #d8d9dd;
+  background:#f7f8fa;color:#444;font-size:16px;font-weight:700;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;transition:background .1s;line-height:1;padding:0;
+}
+.speed-adj-btn:hover{background:#eef0f3}
+.speed-disp{min-width:38px;text-align:center;font-size:12px;font-weight:700;color:#333;font-family:monospace}
+.ctrl-row{display:flex;align-items:center;gap:7px}
+.cbtn{
+  background:none;border:none;color:#666;cursor:pointer;padding:3px;
+  border-radius:4px;display:flex;align-items:center;justify-content:center;
+  transition:color .1s,background .1s;flex-shrink:0;
+}
+.cbtn:hover{color:#111;background:#eef0f3}
+.time-txt{font-size:12px;font-family:monospace;color:#888;min-width:105px}
+.vol-row{display:flex;align-items:center;gap:5px;margin-left:auto}
+.vol-range{
+  -webkit-appearance:none;appearance:none;
+  width:65px;height:3px;background:#d8d9dd;border-radius:2px;outline:none;cursor:pointer;
+}
+.vol-range::-webkit-slider-thumb{
+  -webkit-appearance:none;width:11px;height:11px;border-radius:50%;background:#888;cursor:pointer;
 }
 
-video {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  background: #000;
-  display: none;
+/* ── TIMELINE ── */
+.timeline-area{
+  flex:0 0 auto;background:#f7f8fa;border-top:1px solid #e2e4e8;
+  padding:5px 14px 7px;display:flex;flex-direction:column;gap:3px;
 }
-video.loaded { display: block; }
+.track-row{display:flex;align-items:center;gap:7px;height:22px}
+.track-label{
+  flex-shrink:0;font-size:10px;font-weight:800;color:#fff;
+  padding:2px 6px;border-radius:3px;line-height:14px;
+  min-width:22px;text-align:center;
+}
+.track-wrap{
+  flex:1;position:relative;height:12px;background:#e0e2e6;
+  border-radius:3px;cursor:pointer;overflow:visible;
+}
+.track-vid-bar{position:absolute;top:0;bottom:0;border-radius:3px;pointer-events:none;box-sizing:border-box}
+.track-played{position:absolute;top:0;bottom:0;border-radius:3px;pointer-events:none}
+.track-head{
+  position:absolute;top:-3px;bottom:-3px;
+  width:2px;margin-left:-1px;background:#333;border-radius:1px;
+  pointer-events:none;box-shadow:0 0 3px rgba(0,0,0,.2);
+}
+.track-time{flex-shrink:0;font-size:10px;font-family:monospace;color:#999;width:52px;text-align:right}
+.off-ctrl{display:flex;align-items:center;gap:3px;flex-shrink:0}
+.off-btn{
+  padding:1px 5px;border-radius:3px;border:1px solid #d8d9dd;
+  background:#fff;color:#555;font-size:10px;cursor:pointer;
+  white-space:nowrap;line-height:16px;transition:background .1s;
+}
+.off-btn:hover{background:#eef0f3}
+.off-input{
+  width:60px;padding:1px 4px;border-radius:3px;
+  border:1px solid #d8d9dd;background:#fff;
+  color:#d46b00;font-size:10px;font-family:monospace;
+  text-align:right;outline:none;font-weight:600;
+}
+.off-input:focus{border-color:#409eff}
+.off-master-tag{font-size:10px;color:#aaa}
+.timeline-footer{
+  display:flex;align-items:center;gap:7px;
+  padding-top:4px;margin-top:1px;border-top:1px solid #e8e9ec;
+}
+.ts-btn{
+  padding:3px 10px;border-radius:5px;border:1px solid #d8d9dd;
+  background:#fff;color:#555;font-size:11px;cursor:pointer;white-space:nowrap;
+  transition:background .1s;
+}
+.ts-btn:hover{background:#eef0f3}
+.ts-btn:disabled{color:#ccc;cursor:default;background:#f7f8fa}
+.ts-info{font-size:10px;font-family:monospace;color:#bbb;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
 
-.panel-overlay {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  padding: 28px 12px 10px;
-  background: linear-gradient(transparent, rgba(0,0,0,0.75));
-  pointer-events: none;
+/* ── EXPORT OVERLAY ── */
+.export-overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;
+  flex-direction:column;align-items:center;justify-content:center;gap:16px;
 }
-.panel-filename {
-  font-size: 11px;
-  color: #ccc;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.export-overlay.show{display:flex}
+.exp-title{font-size:15px;font-weight:600;color:#fff}
+.exp-sub{font-size:12px;color:#ccc}
+.exp-progress-wrap{width:320px;height:6px;background:rgba(255,255,255,.2);border-radius:3px;overflow:hidden}
+.exp-progress-fill{height:100%;background:linear-gradient(90deg,#2d8cf0,#7c3aed);border-radius:3px;transition:width .2s}
+.exp-pct{font-size:22px;font-weight:700;font-family:monospace;color:#fff}
+.exp-cancel-btn{
+  padding:7px 20px;border-radius:6px;border:1px solid rgba(255,255,255,.3);
+  background:rgba(255,255,255,.1);color:#eee;font-size:13px;cursor:pointer;margin-top:4px;
 }
-.panel-timecode {
-  font-size: 11px;
-  font-family: monospace;
-  color: #aaa;
-  margin-top: 1px;
-}
+.exp-cancel-btn:hover{background:rgba(255,255,255,.2)}
 
-.panel-badge {
-  position: absolute;
-  top: 10px; left: 10px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  border-radius: 6px;
-  overflow: hidden;
-  z-index: 5;
-  pointer-events: auto;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+/* ── NAME DIALOG ── */
+.name-dialog{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:300;
+  align-items:center;justify-content:center;
 }
-.badge-letter {
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  padding: 4px 9px;
-  flex-shrink: 0;
-  line-height: 1;
+.name-dialog.show{display:flex}
+.name-box{
+  background:#fff;border:1px solid #e2e4e8;border-radius:10px;
+  padding:22px 24px 18px;width:380px;display:flex;flex-direction:column;gap:13px;
+  box-shadow:0 8px 36px rgba(0,0,0,.14);
 }
-.panel-badge.a .badge-letter { background: rgba(45,140,240,0.92); color: #fff; }
-.panel-badge.b .badge-letter { background: rgba(245,108,108,0.92); color: #fff; }
-
-.badge-note {
-  background: rgba(0,0,0,0.55);
-  border: none;
-  outline: none;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 500;
-  padding: 4px 8px 4px 2px;
-  min-width: 60px;
-  max-width: 280px;
-  width: 200px;
-  caret-color: #fff;
+.name-box h2{font-size:14px;font-weight:600;color:#111}
+.name-box label{font-size:11px;color:#888;margin-bottom:4px;display:block}
+.name-input{
+  width:100%;padding:8px 10px;border-radius:6px;border:1px solid #d8d9dd;
+  background:#f7f8fa;color:#1a1a1a;font-size:13px;outline:none;transition:border-color .12s;
 }
-.badge-note::placeholder { color: rgba(255,255,255,0.35); font-weight: 400; }
-.badge-note:focus { background: rgba(0,0,0,0.75); }
-
-.gutter { width: 3px; background: #e2e4e8; flex-shrink: 0; }
-
-/* ── 控制栏 ── */
-.ctrl-bar {
-  flex: 0 0 auto;
-  background: #ffffff;
-  border-top: 1px solid #e2e4e8;
-  padding: 7px 14px 9px;
+.name-input:focus{border-color:#409eff;background:#fff}
+.name-actions{display:flex;gap:9px;justify-content:flex-end;margin-top:3px}
+.name-cancel{
+  padding:6px 15px;border-radius:6px;border:1px solid #d8d9dd;
+  background:#f7f8fa;color:#666;font-size:12px;cursor:pointer;
 }
-
-.progress-track {
-  position: relative;
-  height: 5px;
-  background: #e0e2e6;
-  border-radius: 3px;
-  cursor: pointer;
-  margin-bottom: 7px;
-  transition: height .1s;
+.name-cancel:hover{background:#eef0f3}
+.name-confirm{
+  padding:6px 16px;border-radius:6px;border:1px solid #409eff;
+  background:#409eff;color:#fff;font-size:12px;font-weight:600;cursor:pointer;
+  transition:background .12s;
 }
-.progress-track:hover { height: 7px; }
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #2d8cf0 0%, #7c3aed 100%);
-  border-radius: 3px;
-  pointer-events: none;
-}
-.progress-thumb {
-  position: absolute;
-  top: 50%; left: 0%;
-  width: 13px; height: 13px;
-  background: #fff;
-  border: 2px solid #2d8cf0;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity .15s;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-}
-.progress-track:hover .progress-thumb { opacity: 1; }
-
-/* ── 裁剪区域和手柄 ── */
-.trim-region {
-  position: absolute;
-  top: -1px; bottom: -1px;
-  background: rgba(45,140,240,0.13);
-  border-left: 2px solid rgba(45,140,240,0.8);
-  border-right: 2px solid rgba(45,140,240,0.8);
-  pointer-events: none;
-  display: none;
-}
-.trim-handle {
-  position: absolute;
-  top: 50%;
-  width: 14px; height: 28px;
-  transform: translate(-50%, -50%);
-  cursor: ew-resize;
-  z-index: 10;
-  display: none;
-}
-.trim-handle::after {
-  content: '';
-  position: absolute;
-  left: 50%; top: 0; bottom: 0;
-  width: 4px;
-  background: #2d8cf0;
-  transform: translateX(-50%);
-  border-radius: 2px;
-  box-shadow: 0 0 0 1.5px #fff, 0 0 5px rgba(45,140,240,0.5);
-}
-
-/* ── 裁剪/速度控制行 ── */
-.trim-row {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  margin-bottom: 5px;
-}
-.trim-btn {
-  padding: 2px 8px;
-  border-radius: 4px;
-  border: 1px solid #d8d9dd;
-  background: #f7f8fa;
-  color: #555;
-  font-size: 11px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background .12s;
-  line-height: 18px;
-}
-.trim-btn:hover { background: #eef0f3; color: #111; }
-.trim-btn.set { border-color: #2d8cf0; background: #deeeff; color: #1a6ec9; font-weight: 600; }
-.trim-info {
-  font-size: 11px;
-  font-family: monospace;
-  color: #888;
-  white-space: nowrap;
-}
-.speed-adj-btn {
-  width: 22px; height: 22px;
-  border-radius: 4px;
-  border: 1px solid #d8d9dd;
-  background: #f7f8fa;
-  color: #444;
-  font-size: 16px;
-  font-weight: 700;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: background .12s;
-  line-height: 1;
-  padding: 0;
-}
-.speed-adj-btn:hover { background: #eef0f3; }
-.speed-disp {
-  min-width: 40px;
-  text-align: center;
-  font-size: 12px;
-  font-weight: 700;
-  color: #333;
-  font-family: monospace;
-}
-
-.ctrl-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.cbtn {
-  background: none;
-  border: none;
-  color: #666;
-  cursor: pointer;
-  padding: 3px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color .12s, background .12s;
-  flex-shrink: 0;
-}
-.cbtn:hover { color: #111; background: #eef0f3; }
-.cbtn:disabled { color: #ccc; cursor: default; }
-.cbtn:disabled:hover { background: none; }
-
-.time-txt {
-  font-size: 12px;
-  font-family: monospace;
-  color: #888;
-  min-width: 105px;
-}
-
-.speed-sel {
-  background: #fff;
-  border: 1px solid #d8d9dd;
-  color: #555;
-  padding: 3px 5px;
-  border-radius: 5px;
-  font-size: 11px;
-  cursor: pointer;
-  outline: none;
-}
-
-.vol-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: auto;
-}
-.vol-range {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 65px; height: 3px;
-  background: #d8d9dd;
-  border-radius: 2px;
-  outline: none;
-  cursor: pointer;
-}
-.vol-range::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 11px; height: 11px;
-  border-radius: 50%;
-  background: #888;
-  cursor: pointer;
-}
-
-/* ── 命名对话框 ── */
-.name-dialog {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.45);
-  z-index: 300;
-  align-items: center;
-  justify-content: center;
-}
-.name-dialog.show { display: flex; }
-.name-box {
-  background: #ffffff;
-  border: 1px solid #e2e4e8;
-  border-radius: 10px;
-  padding: 24px 26px 20px;
-  width: 380px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.15);
-}
-.name-box h2 { font-size: 14px; font-weight: 600; color: #111; }
-.name-box label { font-size: 11px; color: #888; margin-bottom: 4px; display: block; }
-.name-input {
-  width: 100%;
-  padding: 8px 10px;
-  border-radius: 6px;
-  border: 1px solid #d8d9dd;
-  background: #f7f8fa;
-  color: #1a1a1a;
-  font-size: 13px;
-  outline: none;
-  transition: border-color .15s;
-}
-.name-input:focus { border-color: #409eff; background: #fff; }
-.name-ext { font-size: 11px; color: #aaa; }
-.name-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
-.name-cancel {
-  padding: 7px 16px;
-  border-radius: 6px;
-  border: 1px solid #d8d9dd;
-  background: #f7f8fa;
-  color: #666;
-  font-size: 12px;
-  cursor: pointer;
-}
-.name-cancel:hover { background: #eef0f3; }
-.name-confirm {
-  padding: 7px 18px;
-  border-radius: 6px;
-  border: 1px solid #409eff;
-  background: #409eff;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background .15s;
-}
-.name-confirm:hover { background: #2d8cf0; }
-
-/* ── 导出进度遮罩 ── */
-.export-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.6);
-  z-index: 200;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 18px;
-}
-.export-overlay.show { display: flex; }
-.exp-title { font-size: 15px; font-weight: 600; color: #fff; }
-.exp-sub { font-size: 12px; color: #ccc; }
-.exp-progress-wrap { width: 320px; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; overflow: hidden; }
-.exp-progress-fill { height: 100%; background: linear-gradient(90deg, #2d8cf0, #7c3aed); border-radius: 3px; transition: width .2s; }
-.exp-pct { font-size: 22px; font-weight: 700; font-family: monospace; color: #fff; }
-.exp-cancel-btn {
-  padding: 7px 20px;
-  border-radius: 6px;
-  border: 1px solid rgba(255,255,255,0.3);
-  background: rgba(255,255,255,0.1);
-  color: #eee;
-  font-size: 13px;
-  cursor: pointer;
-  margin-top: 6px;
-}
-.exp-cancel-btn:hover { background: rgba(255,255,255,0.2); }
-
-/* ── 双导轨 ── */
-.dual-tracks {
-  flex: 0 0 auto;
-  background: #f7f8fa;
-  border-top: 1px solid #e2e4e8;
-  padding: 5px 14px 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.dual-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.dual-label {
-  font-size: 11px;
-  font-weight: 800;
-  width: 14px;
-  text-align: center;
-  flex-shrink: 0;
-  line-height: 1;
-}
-.dual-label.a { color: #2d8cf0; }
-.dual-label.b { color: #f56c6c; }
-.dual-track-wrap {
-  flex: 1;
-  position: relative;
-  height: 14px;
-  background: #e0e2e6;
-  border-radius: 3px;
-  cursor: pointer;
-  overflow: visible;
-}
-.dual-vid-bar {
-  position: absolute;
-  top: 0; bottom: 0;
-  border-radius: 3px;
-  pointer-events: none;
-  box-sizing: border-box;
-}
-.dual-vid-bar.a { background: rgba(45,140,240,0.18); border: 1.5px solid rgba(45,140,240,0.5); }
-.dual-vid-bar.b { background: rgba(245,108,108,0.18); border: 1.5px solid rgba(245,108,108,0.5); }
-.dual-played {
-  position: absolute;
-  top: 0; bottom: 0;
-  border-radius: 3px;
-  pointer-events: none;
-}
-.dual-played.a { background: rgba(45,140,240,0.6); }
-.dual-played.b { background: rgba(245,108,108,0.6); }
-.dual-head {
-  position: absolute;
-  top: -3px; bottom: -3px;
-  width: 2px;
-  margin-left: -1px;
-  background: #333;
-  border-radius: 1px;
-  pointer-events: none;
-  box-shadow: 0 0 3px rgba(0,0,0,0.25);
-}
-.dual-time {
-  font-size: 10px;
-  font-family: monospace;
-  color: #999;
-  width: 54px;
-  flex-shrink: 0;
-  text-align: right;
-}
-.ts-chip {
-  font-size: 10px;
-  font-family: monospace;
-  color: #aaa;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 300px;
-}
+.name-confirm:hover{background:#2d8cf0}
 </style>
 </head>
 <body>
 
-<!-- 顶栏 -->
 <div class="header">
   <span class="logo">视频对比</span>
   <div class="sep"></div>
-
-  <label class="upload-btn">
-    <span class="dot a"></span>
-    <span style="flex-shrink:0">A 视频</span>
-    <span class="fname" id="fnameA">未选择</span>
-    <input type="file" accept="video/*" id="fileA">
+  <label class="hdr-btn" title="导入视频（可多选）">
+    <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M19 13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg>
+    导入视频
+    <input type="file" id="mainFileInput" accept="video/*" multiple>
   </label>
-
-  <label class="upload-btn">
-    <span class="dot b"></span>
-    <span style="flex-shrink:0">B 视频</span>
-    <span class="fname" id="fnameB">未选择</span>
-    <input type="file" accept="video/*" id="fileB">
-  </label>
-
-  <div class="sep"></div>
-
   <div class="spacer"></div>
-
+  <select class="ver-select" id="verSelect"></select>
+  <div class="sep"></div>
   <button class="export-btn" id="exportBtn" disabled>
-    <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
-      <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
-    </svg>
-    导出拼接视频
+    <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+    导出视频
   </button>
 </div>
 
-<!-- 视频区域 -->
-<div class="video-area">
-  <div class="panel" id="panelA">
-    <div class="panel-badge a">
-      <span class="badge-letter">A</span>
-      <input class="badge-note" id="noteA" placeholder="备注…" maxlength="30" spellcheck="false">
-    </div>
-    <div class="drop-zone" id="dropA">
-      <svg width="38" height="38" fill="none" stroke="currentColor" stroke-width="1.4" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.55-2.73A1 1 0 0121 8.13V15.87a1 1 0 01-1.45.87L15 14M3 8a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/>
-      </svg>
-      <span>拖入 A 视频 或点击上方按钮</span>
-    </div>
-    <video id="videoA" preload="metadata"></video>
-    <div class="panel-overlay">
-      <div class="panel-filename" id="panelFnameA">—</div>
-      <div class="panel-timecode" id="tcA">0:00.000</div>
-    </div>
+<div class="video-grid" id="videoGrid">
+  <div class="empty-zone" id="emptyZone">
+    <label class="empty-import">
+      <div class="empty-plus">+</div>
+      <div class="empty-text">导入视频</div>
+      <div class="empty-hint">支持拖入 · 可同时选择多个文件</div>
+      <input type="file" id="emptyFileInput" accept="video/*" multiple>
+    </label>
   </div>
-
-  <div class="gutter"></div>
-
-  <div class="panel" id="panelB">
-    <div class="panel-badge b">
-      <span class="badge-letter">B</span>
-      <input class="badge-note" id="noteB" placeholder="备注…" maxlength="30" spellcheck="false">
-    </div>
-    <div class="drop-zone" id="dropB">
-      <svg width="38" height="38" fill="none" stroke="currentColor" stroke-width="1.4" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.55-2.73A1 1 0 0121 8.13V15.87a1 1 0 01-1.45.87L15 14M3 8a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/>
-      </svg>
-      <span>拖入 B 视频 或点击上方按钮</span>
-    </div>
-    <video id="videoB" preload="metadata"></video>
-    <div class="panel-overlay">
-      <div class="panel-filename" id="panelFnameB">—</div>
-      <div class="panel-timecode" id="tcB">0:00.000</div>
-    </div>
-  </div>
+  <button class="layout-btn" id="layoutBtn" style="display:none">布局</button>
 </div>
 
-<!-- 控制栏 -->
 <div class="ctrl-bar">
   <div class="progress-track" id="progressTrack">
     <div class="trim-region" id="trimRegion"></div>
@@ -723,8 +344,8 @@ video.loaded { display: block; }
     <div class="progress-thumb" id="progressThumb" style="left:0%"></div>
   </div>
   <div class="trim-row">
-    <button class="trim-btn" id="btnTrimIn" title="设置入点 (I)">[I] 入点</button>
-    <button class="trim-btn" id="btnTrimOut" title="设置出点 (O)">[O] 出点</button>
+    <button class="trim-btn" id="btnTrimIn">[I] 入点</button>
+    <button class="trim-btn" id="btnTrimOut">[O] 出点</button>
     <button class="trim-btn" id="btnTrimClear">清除裁剪</button>
     <span class="trim-info" id="trimInfo"></span>
     <div class="spacer"></div>
@@ -734,19 +355,15 @@ video.loaded { display: block; }
     <button class="speed-adj-btn" id="btnSpeedUp">+</button>
   </div>
   <div class="ctrl-row">
-    <button class="cbtn" id="btnBack" title="后退 5s (J)">
-      <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg>
-    </button>
-    <button class="cbtn" id="btnPlay" title="播放/暂停 (空格)">
+    <button class="cbtn" id="btnBack"><svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg></button>
+    <button class="cbtn" id="btnPlay">
       <svg id="iPlay" width="22" height="22" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
       <svg id="iPause" width="22" height="22" fill="currentColor" viewBox="0 0 24 24" style="display:none"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
     </button>
-    <button class="cbtn" id="btnFwd" title="前进 5s (L)">
-      <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg>
-    </button>
+    <button class="cbtn" id="btnFwd"><svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg></button>
     <span class="time-txt" id="timeTxt">0:00 / 0:00</span>
     <div class="sep" style="height:18px"></div>
-    <button class="cbtn" id="btnMute" title="静音">
+    <button class="cbtn" id="btnMute">
       <svg id="iVol" width="17" height="17" fill="currentColor" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
       <svg id="iMute" width="17" height="17" fill="currentColor" viewBox="0 0 24 24" style="display:none"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
     </button>
@@ -756,14 +373,21 @@ video.loaded { display: block; }
   </div>
 </div>
 
-<!-- 命名对话框 -->
+<div class="timeline-area" id="timelineArea">
+  <div id="trackRows"></div>
+  <div class="timeline-footer">
+    <button class="ts-btn" id="alignTsBtn" disabled>⏱ 对齐时间戳</button>
+    <button class="ts-btn" id="syncCurBtn">从当前位置同步</button>
+    <span class="ts-info" id="tsInfo"></span>
+  </div>
+</div>
+
 <div class="name-dialog" id="nameDialog">
   <div class="name-box">
-    <h2>导出前命名文件</h2>
+    <h2>导出文件命名</h2>
     <div>
       <label>文件名</label>
       <input type="text" class="name-input" id="exportNameInput" placeholder="输入文件名" spellcheck="false">
-      <span class="name-ext" id="nameExt">.mp4</span>
     </div>
     <div class="name-actions">
       <button class="name-cancel" id="nameCancelBtn">取消</button>
@@ -772,158 +396,612 @@ video.loaded { display: block; }
   </div>
 </div>
 
-<!-- 双导轨 -->
-<div class="dual-tracks" id="dualTracks">
-  <!-- 偏移控制行 -->
-  <div class="offset-row" style="margin:0 -14px;padding:6px 14px;border-bottom:1px solid #e2e4e8;border-top:none;background:transparent;">
-    <span class="offset-label">B 时间偏移</span>
-    <button class="fine-btn" data-delta="-5">−5s</button>
-    <button class="fine-btn" data-delta="-1">−1s</button>
-    <button class="fine-btn" data-delta="-0.0333">−1帧</button>
-    <input type="range" class="offset-slider" id="offsetSlider" min="-60" max="60" step="0.033" value="0">
-    <button class="fine-btn" data-delta="0.0333">+1帧</button>
-    <button class="fine-btn" data-delta="1">+1s</button>
-    <button class="fine-btn" data-delta="5">+5s</button>
-    <input type="number" class="offset-num-input" id="offsetNum" step="0.033" value="0" title="直接输入偏移秒数">
-    <span style="font-size:11px;color:#555">s</span>
-    <button class="sync-cur-btn" id="syncCurBtn" title="将当前 B 播放位置设为偏移参考点">从当前位置同步</button>
-    <button class="reset-btn" id="resetOffsetBtn">清零</button>
-    <div class="sep" style="height:18px"></div>
-    <button class="sync-cur-btn" id="alignTsBtn" disabled title="根据视频内嵌时间戳自动对齐">⏱ 对齐时间戳</button>
-    <span class="ts-chip" id="tsChip"></span>
-  </div>
-  <div class="dual-row">
-    <span class="dual-label a">A</span>
-    <div class="dual-track-wrap" id="dualWrapA">
-      <div class="dual-vid-bar a" id="dualVidA"></div>
-      <div class="dual-played a" id="dualPlayedA"></div>
-      <div class="dual-head" id="dualHeadA"></div>
-    </div>
-    <span class="dual-time" id="dualTimeA">—</span>
-  </div>
-  <div class="dual-row">
-    <span class="dual-label b">B</span>
-    <div class="dual-track-wrap" id="dualWrapB">
-      <div class="dual-vid-bar b" id="dualVidB"></div>
-      <div class="dual-played b" id="dualPlayedB"></div>
-      <div class="dual-head" id="dualHeadB"></div>
-    </div>
-    <span class="dual-time" id="dualTimeB">—</span>
-  </div>
-</div>
-
-<!-- 导出遮罩 -->
 <div class="export-overlay" id="exportOverlay">
   <div class="exp-title">正在导出拼接视频</div>
   <div class="exp-pct" id="expPct">0%</div>
-  <div class="exp-progress-wrap">
-    <div class="exp-progress-fill" id="expFill" style="width:0%"></div>
-  </div>
+  <div class="exp-progress-wrap"><div class="exp-progress-fill" id="expFill" style="width:0%"></div></div>
   <div class="exp-sub" id="expSub">准备中…</div>
   <button class="exp-cancel-btn" id="expCancelBtn">取消</button>
 </div>
 
 <script>
-// ── 元素引用 ──
-const vA = document.getElementById('videoA');
-const vB = document.getElementById('videoB');
-const dropA = document.getElementById('dropA');
-const dropB = document.getElementById('dropB');
-const fileA = document.getElementById('fileA');
-const fileB = document.getElementById('fileB');
-const fnameA = document.getElementById('fnameA');
-const fnameB = document.getElementById('fnameB');
-const panelFnameA = document.getElementById('panelFnameA');
-const panelFnameB = document.getElementById('panelFnameB');
-const tcA = document.getElementById('tcA');
-const tcB = document.getElementById('tcB');
-const progressTrack = document.getElementById('progressTrack');
-const progressFill = document.getElementById('progressFill');
-const progressThumb = document.getElementById('progressThumb');
-const btnPlay = document.getElementById('btnPlay');
-const iPlay = document.getElementById('iPlay');
-const iPause = document.getElementById('iPause');
-const btnBack = document.getElementById('btnBack');
-const btnFwd = document.getElementById('btnFwd');
-const timeTxt = document.getElementById('timeTxt');
-const btnMute = document.getElementById('btnMute');
-const iVol = document.getElementById('iVol');
-const iMute = document.getElementById('iMute');
-const volRange = document.getElementById('volRange');
-const exportBtn = document.getElementById('exportBtn');
-const offsetSlider = document.getElementById('offsetSlider');
-const offsetNum = document.getElementById('offsetNum');
-const syncCurBtn = document.getElementById('syncCurBtn');
-const resetOffsetBtn = document.getElementById('resetOffsetBtn');
-const exportOverlay = document.getElementById('exportOverlay');
-const expPct = document.getElementById('expPct');
-const expFill = document.getElementById('expFill');
-const expSub = document.getElementById('expSub');
-const expCancelBtn = document.getElementById('expCancelBtn');
+// ══════════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════════
+const VERSION = 'v2.0';
+const VERSIONS = [
+  { ver: 'v2.0', file: 'index.html',        desc: '多视频·自由布局' },
+  { ver: 'v1.1', file: 'versions/v1.1.html', desc: '双视频对比' },
+];
+const COLORS = ['#2d8cf0','#f56c6c','#52c41a','#fa8c16','#a855f7','#14b8a6'];
+const LABELS = ['A','B','C','D','E','F'];
+const MAX_VIDEOS = 4;
+const SPEEDS = [0.1, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
 
-// ── 状态 ──
-let loadedA = false, loadedB = false;
+// Layout presets: {areas, cols, rows, label}
+// areas uses CSS grid-template-areas format (double-quoted strings)
+const LAYOUT_PRESETS = {
+  1: [{ areas:'"a"',           cols:'1fr',       rows:'1fr', label:'单屏' }],
+  2: [
+    { areas:'"a b"',           cols:'1fr 1fr',   rows:'1fr', label:'左右' },
+    { areas:'"a" "b"',         cols:'1fr',       rows:'1fr 1fr', label:'上下' },
+  ],
+  3: [
+    { areas:'"a b c"',         cols:'1fr 1fr 1fr', rows:'1fr', label:'三列' },
+    { areas:'"a b" "c c"',     cols:'1fr 1fr',   rows:'1fr 1fr', label:'上二下一' },
+    { areas:'"a a" "b c"',     cols:'1fr 1fr',   rows:'1fr 1fr', label:'上一下二' },
+    { areas:'"a b" "a c"',     cols:'1fr 1fr',   rows:'1fr 1fr', label:'左一右二' },
+  ],
+  4: [
+    { areas:'"a b c d"',       cols:'1fr 1fr 1fr 1fr', rows:'1fr', label:'四列' },
+    { areas:'"a b" "c d"',     cols:'1fr 1fr',   rows:'1fr 1fr', label:'2×2' },
+    { areas:'"a b c" "d d d"', cols:'1fr 1fr 1fr', rows:'1fr 1fr', label:'上三下一' },
+    { areas:'"a a a" "b c d"', cols:'1fr 1fr 1fr', rows:'1fr 1fr', label:'上一下三' },
+  ],
+};
+
+// ══════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════
+const videos = []; // {id, el, tileEl, file, name, note, offset, tsMs, loaded, color, label}
 let playing = false;
-let bOffset = 0;      // B 相对 A 的偏移（秒），正值 = B 晚于 A
-let isSyncing = false;
-let isDragging = false;
 let exportCancel = false;
-let animId = null;
-let tsA = null, tsB = null;   // MP4 creation timestamps (ms, unix epoch)
-let fileObjA = null, fileObjB = null;
+let dragSrcId = null;
+let layoutIdx = 0;
+let trimIn = null, trimOut = null;
+let seekDragging = false;
+let speedIdx = SPEEDS.indexOf(1);
 
-// ── 工具函数 ──
+// ══════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════
 function fmt(t) {
   if (!isFinite(t) || t < 0) t = 0;
   const m = Math.floor(t / 60);
-  const s = Math.floor(t % 60).toString().padStart(2, '0');
-  const ms = Math.floor((t % 1) * 1000).toString().padStart(3, '0');
+  const s = Math.floor(t % 60).toString().padStart(2,'0');
+  const ms = Math.floor((t % 1) * 1000).toString().padStart(3,'0');
   return `${m}:${s}.${ms}`;
 }
 function fmtShort(t) {
   if (!isFinite(t) || t < 0) return '0:00';
   const m = Math.floor(t / 60);
-  const s = Math.floor(t % 60).toString().padStart(2, '0');
+  const s = Math.floor(t % 60).toString().padStart(2,'0');
   return `${m}:${s}`;
 }
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
-
-// ── 加载视频 ──
-function loadVid(vid, file, dropEl, shortName, panelName, isA) {
-  const prev = vid.src;
-  if (prev) URL.revokeObjectURL(prev);
-  vid.src = URL.createObjectURL(file);
-  vid.load();
-  dropEl.style.display = 'none';
-  vid.classList.add('loaded');
-  const n = file.name;
-  shortName.textContent = n;
-  panelName.textContent = n;
-  if (isA) { loadedA = true; fileObjA = file; } else { loadedB = true; fileObjB = file; }
-  if (loadedA && loadedB) exportBtn.disabled = false;
-  vid.playbackRate = SPEEDS[speedIdx] || 1;
-  updateTrimUI();
-  parseTsAsync(file, isA ? 'A' : 'B');
+function stripExt(n) { return n.replace(/\.[^.]+$/,''); }
+function hexToRgba(hex, a) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+function getAreaNames(areasStr) {
+  return [...new Set([...areasStr.matchAll(/[a-f]/g)].map(m => m[0]))];
 }
 
-function setupUpload(inputEl, vid, dropEl, shortName, panelName, isA) {
-  inputEl.addEventListener('change', e => {
-    if (e.target.files[0]) loadVid(vid, e.target.files[0], dropEl, shortName, panelName, isA);
+// ══════════════════════════════════════════════
+// VERSION SELECTOR
+// ══════════════════════════════════════════════
+const verSelect = document.getElementById('verSelect');
+VERSIONS.forEach(v => {
+  const opt = document.createElement('option');
+  opt.value = v.file;
+  opt.textContent = `${v.ver}  ${v.desc}`;
+  opt.selected = v.ver === VERSION;
+  verSelect.appendChild(opt);
+});
+verSelect.addEventListener('change', () => {
+  const cur = VERSIONS.find(v => v.ver === VERSION);
+  if (verSelect.value !== cur.file) window.location.href = verSelect.value;
+});
+
+// ══════════════════════════════════════════════
+// TIMELINE MATH
+// ══════════════════════════════════════════════
+function getTimelineInfo() {
+  if (!videos.length) return { totalDur:1, shift:0, combStarts:[] };
+  const shift = Math.max(0, ...videos.map(v => v.offset));
+  const combStarts = videos.map(v => shift - v.offset);
+  const totalDur = Math.max(1, ...videos.map((v, i) => {
+    const dur = v.el && isFinite(v.el.duration) ? v.el.duration : 0;
+    return combStarts[i] + dur;
+  }));
+  return { totalDur, shift, combStarts };
+}
+
+// ══════════════════════════════════════════════
+// VIDEO MANAGEMENT
+// ══════════════════════════════════════════════
+function addVideosFromFiles(files) {
+  const arr = Array.from(files).filter(f => f.type.startsWith('video/'));
+  const toAdd = Math.min(arr.length, MAX_VIDEOS - videos.length);
+  for (let i = 0; i < toAdd; i++) createVideoEntry(arr[i]);
+}
+
+function createVideoEntry(file) {
+  if (videos.length >= MAX_VIDEOS) return;
+  const idx = videos.length;
+  const vid = {
+    id: 'v' + Date.now() + Math.random().toString(36).slice(2),
+    el: null, tileEl: null,
+    file, name: file.name, note: '',
+    offset: 0, tsMs: null, loaded: false,
+    color: COLORS[idx % COLORS.length],
+    label: LABELS[idx % LABELS.length],
+  };
+  videos.push(vid);
+  const tile = buildTile(vid);
+  vid.tileEl = tile;
+  vid.el = tile.querySelector('video');
+  vid.el.src = URL.createObjectURL(file);
+  vid.el.load();
+  vid.el.playbackRate = SPEEDS[speedIdx];
+  vid.el.addEventListener('loadedmetadata', () => { vid.loaded = true; updateExportBtn(); }, { once: true });
+  tile.querySelector('.tile-fname').textContent = file.name;
+  tile.querySelector('.tile-drop-zone').classList.add('hidden');
+  const grid = document.getElementById('videoGrid');
+  grid.insertBefore(tile, document.getElementById('layoutBtn'));
+  layoutIdx = 0;
+  updateAll();
+  parseTsAsync(vid);
+}
+
+function loadFileIntoTile(vid, file) {
+  if (vid.el.src) URL.revokeObjectURL(vid.el.src);
+  vid.file = file; vid.name = file.name; vid.tsMs = null; vid.loaded = false;
+  vid.el.src = URL.createObjectURL(file);
+  vid.el.load();
+  vid.el.addEventListener('loadedmetadata', () => { vid.loaded = true; updateExportBtn(); }, { once: true });
+  vid.tileEl.querySelector('.tile-fname').textContent = file.name;
+  vid.tileEl.querySelector('.tile-drop-zone').classList.add('hidden');
+  parseTsAsync(vid);
+  updateTsInfo();
+}
+
+function removeVideo(vidId) {
+  const idx = videos.findIndex(v => v.id === vidId);
+  if (idx === -1) return;
+  const vid = videos[idx];
+  vid.el.pause();
+  if (vid.el.src) URL.revokeObjectURL(vid.el.src);
+  vid.tileEl.remove();
+  videos.splice(idx, 1);
+  if (videos.length > 0 && videos[0].offset !== 0) {
+    const base = videos[0].offset;
+    videos.forEach(v => v.offset -= base);
+  }
+  reassignLabels();
+  layoutIdx = 0;
+  updateAll();
+}
+
+function buildTile(vid) {
+  const tile = document.createElement('div');
+  tile.className = 'vid-tile';
+  tile.dataset.vidid = vid.id;
+  tile.draggable = true;
+
+  tile.innerHTML = `
+    <div class="tile-header">
+      <span class="tile-badge" style="background:${vid.color}">${vid.label}</span>
+      <input class="tile-note" placeholder="备注…" maxlength="30" spellcheck="false">
+      <button class="tile-close" title="移除">✕</button>
+    </div>
+    <div class="tile-body">
+      <div class="tile-drop-zone">
+        <svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M15 10l4.55-2.73A1 1 0 0121 8.13V15.87a1 1 0 01-1.45.87L15 14M3 8a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/>
+        </svg>
+        <span>拖入视频文件</span>
+      </div>
+      <video preload="metadata"></video>
+      <div class="tile-overlay">
+        <div class="tile-fname"></div>
+        <div class="tile-tc">0:00.000</div>
+      </div>
+    </div>`;
+
+  tile.querySelector('.tile-close').addEventListener('click', e => {
+    e.stopPropagation(); removeVideo(vid.id);
   });
-  dropEl.addEventListener('dragover', e => { e.preventDefault(); dropEl.classList.add('drag-over'); });
-  dropEl.addEventListener('dragleave', () => dropEl.classList.remove('drag-over'));
-  dropEl.addEventListener('drop', e => {
-    e.preventDefault();
-    dropEl.classList.remove('drag-over');
+  tile.querySelector('.tile-note').addEventListener('input', e => { vid.note = e.target.value; });
+
+  const body = tile.querySelector('.tile-body');
+  const dz = tile.querySelector('.tile-drop-zone');
+  body.addEventListener('dragover', e => {
+    if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); dz.classList.add('dz-over'); }
+  });
+  body.addEventListener('dragleave', e => {
+    if (!body.contains(e.relatedTarget)) dz.classList.remove('dz-over');
+  });
+  body.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('dz-over');
     const f = e.dataTransfer.files[0];
-    if (f && f.type.startsWith('video/')) loadVid(vid, f, dropEl, shortName, panelName, isA);
+    if (f && f.type.startsWith('video/')) loadFileIntoTile(vid, f);
   });
-  dropEl.addEventListener('click', () => inputEl.click());
-}
-setupUpload(fileA, vA, dropA, fnameA, panelFnameA, true);
-setupUpload(fileB, vB, dropB, fnameB, panelFnameB, false);
+  dz.addEventListener('click', () => {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'video/*';
+    inp.onchange = ev => { if (ev.target.files[0]) loadFileIntoTile(vid, ev.target.files[0]); };
+    inp.click();
+  });
 
-// ── MP4 时间戳解析 ──
+  // Drag to reorder tiles
+  tile.addEventListener('dragstart', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+    if (e.dataTransfer.items?.length && e.dataTransfer.items[0]?.kind === 'file') return;
+    dragSrcId = vid.id;
+    tile.classList.add('is-dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', vid.id);
+  });
+  tile.addEventListener('dragend', () => {
+    tile.classList.remove('is-dragging');
+    document.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
+    dragSrcId = null;
+  });
+  tile.addEventListener('dragover', e => {
+    if (!dragSrcId || dragSrcId === vid.id) return;
+    if (e.dataTransfer.types.includes('Files')) return;
+    e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+    tile.classList.add('drop-target');
+  });
+  tile.addEventListener('dragleave', e => {
+    if (!tile.contains(e.relatedTarget)) tile.classList.remove('drop-target');
+  });
+  tile.addEventListener('drop', e => {
+    tile.classList.remove('drop-target');
+    if (!dragSrcId || dragSrcId === vid.id) return;
+    if (e.dataTransfer.types.includes('Files')) return;
+    e.preventDefault();
+    const si = videos.findIndex(v => v.id === dragSrcId);
+    const di = videos.findIndex(v => v.id === vid.id);
+    if (si !== -1 && di !== -1) {
+      const [srcArea, dstArea] = [videos[si].tileEl.style.gridArea, videos[di].tileEl.style.gridArea];
+      videos[si].tileEl.style.gridArea = dstArea;
+      videos[di].tileEl.style.gridArea = srcArea;
+      [videos[si], videos[di]] = [videos[di], videos[si]];
+      reassignLabels();
+      updateTrackRows();
+    }
+    dragSrcId = null;
+  });
+
+  return tile;
+}
+
+function reassignLabels() {
+  videos.forEach((v, i) => {
+    v.color = COLORS[i % COLORS.length];
+    v.label = LABELS[i % LABELS.length];
+    const badge = v.tileEl?.querySelector('.tile-badge');
+    if (badge) { badge.style.background = v.color; badge.textContent = v.label; }
+  });
+}
+
+// ══════════════════════════════════════════════
+// LAYOUT
+// ══════════════════════════════════════════════
+function applyLayout() {
+  const grid = document.getElementById('videoGrid');
+  const n = videos.length;
+  if (n === 0) {
+    grid.classList.remove('has-videos');
+    grid.style.gridTemplateAreas = grid.style.gridTemplateColumns = grid.style.gridTemplateRows = '';
+    return;
+  }
+  grid.classList.add('has-videos');
+  const key = Math.min(n, 4);
+  const presets = LAYOUT_PRESETS[key];
+  const preset = presets[layoutIdx % presets.length];
+  grid.style.gridTemplateAreas = preset.areas;
+  grid.style.gridTemplateColumns = preset.cols;
+  grid.style.gridTemplateRows = preset.rows;
+
+  const unique = getAreaNames(preset.areas);
+  videos.forEach((v, i) => { v.tileEl.style.gridArea = unique[i] || 'a'; });
+
+  const btn = document.getElementById('layoutBtn');
+  if (presets.length > 1) {
+    btn.style.display = '';
+    btn.textContent = `布局: ${preset.label}`;
+  } else {
+    btn.style.display = 'none';
+  }
+}
+
+function updateAll() {
+  updateEmptyState();
+  applyLayout();
+  updateTrackRows();
+  updateAlignBtn();
+  updateExportBtn();
+  updateTsInfo();
+}
+
+function updateEmptyState() {
+  document.getElementById('emptyZone').style.display = videos.length ? 'none' : 'flex';
+}
+
+function updateExportBtn() {
+  document.getElementById('exportBtn').disabled = !videos.some(v => v.loaded);
+}
+
+document.getElementById('layoutBtn').addEventListener('click', () => { layoutIdx++; applyLayout(); });
+
+// ══════════════════════════════════════════════
+// FILE INPUTS
+// ══════════════════════════════════════════════
+function handleFiles(files) { addVideosFromFiles(files); }
+document.getElementById('mainFileInput').addEventListener('change', e => { handleFiles(e.target.files); e.target.value=''; });
+document.getElementById('emptyFileInput').addEventListener('change', e => { handleFiles(e.target.files); e.target.value=''; });
+
+const emptyZone = document.getElementById('emptyZone');
+emptyZone.addEventListener('dragover', e => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); });
+emptyZone.addEventListener('drop', e => {
+  e.preventDefault();
+  handleFiles([...e.dataTransfer.files].filter(f => f.type.startsWith('video/')));
+});
+
+// ══════════════════════════════════════════════
+// PLAYBACK
+// ══════════════════════════════════════════════
+function master() { return videos[0]?.el ?? null; }
+
+function setPlaying(val) {
+  playing = val;
+  document.getElementById('iPlay').style.display = val ? 'none' : 'inline';
+  document.getElementById('iPause').style.display = val ? 'inline' : 'none';
+}
+
+function doPlay() {
+  const m = master(); if (!m) return;
+  const masterT = m.currentTime;
+  videos.forEach((v, i) => {
+    if (!v.loaded) return;
+    if (i > 0) v.el.currentTime = clamp(masterT + v.offset, 0, v.el.duration || 0);
+    v.el.play().catch(() => {});
+  });
+  setPlaying(true);
+}
+
+function doPause() { videos.forEach(v => v.el?.pause()); setPlaying(false); }
+function togglePlay() { if (!videos.length) return; playing ? doPause() : doPlay(); }
+
+function seekAll(masterT) {
+  const m = master(); if (!m) return;
+  m.currentTime = clamp(masterT, 0, m.duration || 0);
+  for (let i = 1; i < videos.length; i++) {
+    const v = videos[i];
+    if (v.loaded) v.el.currentTime = clamp(masterT + v.offset, 0, v.el.duration || 0);
+  }
+}
+function seekDelta(d) { if (master()) seekAll(master().currentTime + d); }
+
+function syncVideos() {
+  if (!videos[0]?.loaded) return;
+  const masterT = videos[0].el.currentTime;
+  for (let i = 1; i < videos.length; i++) {
+    const v = videos[i];
+    if (!v.loaded || !isFinite(v.el.duration)) continue;
+    const target = clamp(masterT + v.offset, 0, v.el.duration);
+    if (Math.abs(v.el.currentTime - target) > 0.12) v.el.currentTime = target;
+  }
+}
+
+document.getElementById('btnPlay').addEventListener('click', togglePlay);
+document.getElementById('btnBack').addEventListener('click', () => seekDelta(-5));
+document.getElementById('btnFwd').addEventListener('click', () => seekDelta(5));
+
+// ══════════════════════════════════════════════
+// PROGRESS BAR
+// ══════════════════════════════════════════════
+const progressTrack = document.getElementById('progressTrack');
+
+function progressSeek(clientX) {
+  const m = master(); if (!m || !m.duration) return;
+  const rect = progressTrack.getBoundingClientRect();
+  const pct = clamp((clientX - rect.left) / rect.width, 0, 1);
+  seekAll(pct * m.duration);
+}
+
+progressTrack.addEventListener('mousedown', e => {
+  if (e.target.classList.contains('trim-handle')) return;
+  seekDragging = true;
+  progressSeek(e.clientX);
+  const wasPlaying = playing; doPause();
+  const onMove = ev => { progressSeek(ev.clientX); };
+  const onUp = () => {
+    seekDragging = false;
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('mouseup', onUp);
+    if (wasPlaying) doPlay();
+  };
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+});
+
+// ══════════════════════════════════════════════
+// TRIM
+// ══════════════════════════════════════════════
+function updateTrimUI() {
+  const m = master();
+  const dur = m?.duration || 0;
+  const hasIn = trimIn !== null, hasOut = trimOut !== null;
+  document.getElementById('btnTrimIn').classList.toggle('set', hasIn);
+  document.getElementById('btnTrimOut').classList.toggle('set', hasOut);
+  if (!dur || (!hasIn && !hasOut)) {
+    ['trimRegion','trimHandleIn','trimHandleOut'].forEach(id => document.getElementById(id).style.display = 'none');
+    document.getElementById('trimInfo').textContent = ''; return;
+  }
+  const inT = hasIn ? trimIn : 0, outT = hasOut ? trimOut : dur;
+  const inP = inT/dur*100, outP = outT/dur*100;
+  document.getElementById('trimRegion').style.cssText = `display:block;left:${inP}%;width:${outP-inP}%`;
+  document.getElementById('trimHandleIn').style.cssText = `display:${hasIn?'block':'none'};left:${inP}%`;
+  document.getElementById('trimHandleOut').style.cssText = `display:${hasOut?'block':'none'};left:${outP}%`;
+  document.getElementById('trimInfo').textContent = `${fmtShort(inT)} → ${fmtShort(outT)}  (${fmtShort(outT - inT)})`;
+}
+document.getElementById('btnTrimIn').addEventListener('click', () => {
+  const m = master(); if (!m) return;
+  trimIn = parseFloat(m.currentTime.toFixed(3));
+  if (trimOut !== null && trimIn >= trimOut) trimOut = null;
+});
+document.getElementById('btnTrimOut').addEventListener('click', () => {
+  const m = master(); if (!m) return;
+  trimOut = parseFloat(m.currentTime.toFixed(3));
+  if (trimIn !== null && trimOut <= trimIn) trimIn = null;
+});
+document.getElementById('btnTrimClear').addEventListener('click', () => { trimIn = trimOut = null; });
+
+function makeTrimDrag(handleId, setter) {
+  document.getElementById(handleId).addEventListener('mousedown', e => {
+    e.stopPropagation(); e.preventDefault();
+    const onMove = ev => {
+      const m = master(); if (!m) return;
+      const rect = progressTrack.getBoundingClientRect();
+      const pct = clamp((ev.clientX - rect.left) / rect.width, 0, 1);
+      setter(parseFloat((pct * (m.duration || 0)).toFixed(3)));
+    };
+    const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  });
+}
+makeTrimDrag('trimHandleIn', v => { trimIn = v; if (trimOut !== null && trimIn >= trimOut) trimOut = null; });
+makeTrimDrag('trimHandleOut', v => { trimOut = v; if (trimIn !== null && trimOut <= trimIn) trimIn = null; });
+
+// ══════════════════════════════════════════════
+// SPEED
+// ══════════════════════════════════════════════
+function applySpeed(idx) {
+  speedIdx = clamp(idx, 0, SPEEDS.length - 1);
+  const s = SPEEDS[speedIdx];
+  videos.forEach(v => { if (v.el) v.el.playbackRate = s; });
+  document.getElementById('speedDisp').textContent = s + '×';
+}
+document.getElementById('btnSpeedDown').addEventListener('click', () => applySpeed(speedIdx - 1));
+document.getElementById('btnSpeedUp').addEventListener('click', () => applySpeed(speedIdx + 1));
+applySpeed(speedIdx);
+
+// ══════════════════════════════════════════════
+// VOLUME
+// ══════════════════════════════════════════════
+function applyMute(val) {
+  if (videos[0]) videos[0].el.muted = val;
+  document.getElementById('iVol').style.display = val ? 'none' : 'inline';
+  document.getElementById('iMute').style.display = val ? 'inline' : 'none';
+}
+document.getElementById('btnMute').addEventListener('click', () => { if (videos[0]) applyMute(!videos[0].el.muted); });
+document.getElementById('volRange').addEventListener('input', e => {
+  if (videos[0]) { videos[0].el.volume = +e.target.value; applyMute(+e.target.value === 0); }
+});
+
+// ══════════════════════════════════════════════
+// OFFSETS
+// ══════════════════════════════════════════════
+function setVideoOffset(vidId, val) {
+  const vid = videos.find(v => v.id === vidId); if (!vid) return;
+  vid.offset = parseFloat((+val).toFixed(3));
+  const inp = document.getElementById('offin-' + vidId);
+  if (inp) inp.value = vid.offset.toFixed(3);
+  if (vid.loaded && videos[0]?.loaded)
+    vid.el.currentTime = clamp(videos[0].el.currentTime + vid.offset, 0, vid.el.duration || 0);
+}
+
+document.getElementById('syncCurBtn').addEventListener('click', () => {
+  if (videos.length < 2 || !videos[0]?.loaded) return;
+  for (let i = 1; i < videos.length; i++) {
+    const v = videos[i];
+    if (v.loaded) setVideoOffset(v.id, v.el.currentTime - videos[0].el.currentTime);
+  }
+});
+
+// ══════════════════════════════════════════════
+// TIMELINE TRACKS
+// ══════════════════════════════════════════════
+function updateTrackRows() {
+  const container = document.getElementById('trackRows');
+  container.innerHTML = '';
+  videos.forEach((v, i) => {
+    const row = document.createElement('div');
+    row.className = 'track-row';
+
+    const offCtrl = i === 0
+      ? `<span class="off-master-tag">主轨</span>`
+      : `<div class="off-ctrl">
+           <button class="off-btn" data-vidid="${v.id}" data-delta="-1">−1s</button>
+           <button class="off-btn" data-vidid="${v.id}" data-delta="${(-1/30).toFixed(5)}">−f</button>
+           <input class="off-input" id="offin-${v.id}" type="number" step="0.033" value="${v.offset.toFixed(3)}">
+           <span style="font-size:10px;color:#999">s</span>
+           <button class="off-btn" data-vidid="${v.id}" data-delta="${(1/30).toFixed(5)}">+f</button>
+           <button class="off-btn" data-vidid="${v.id}" data-delta="1">+1s</button>
+         </div>`;
+
+    row.innerHTML = `
+      <span class="track-label" style="background:${v.color}">${v.label}</span>
+      <div class="track-wrap" id="twrap-${v.id}">
+        <div class="track-vid-bar" id="tvid-${v.id}"></div>
+        <div class="track-played"  id="tplay-${v.id}"></div>
+        <div class="track-head"    id="thead-${v.id}"></div>
+      </div>
+      <span class="track-time" id="ttime-${v.id}">—</span>
+      ${offCtrl}`;
+
+    row.querySelector('.track-wrap').addEventListener('click', e => {
+      if (!videos[0]?.loaded) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const pct = clamp((e.clientX - rect.left) / rect.width, 0, 1);
+      const { totalDur, shift } = getTimelineInfo();
+      seekAll(pct * totalDur - shift);
+    });
+
+    row.querySelectorAll('.off-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const vv = videos.find(v => v.id === btn.dataset.vidid);
+        if (vv) setVideoOffset(vv.id, vv.offset + parseFloat(btn.dataset.delta));
+      });
+    });
+    const inp = row.querySelector('.off-input');
+    if (inp) {
+      inp.addEventListener('change', () => setVideoOffset(v.id, parseFloat(inp.value) || 0));
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') setVideoOffset(v.id, parseFloat(inp.value) || 0); });
+    }
+    container.appendChild(row);
+  });
+}
+
+function updateTrackVisuals() {
+  if (!videos.length) return;
+  const { totalDur, shift, combStarts } = getTimelineInfo();
+  const masterT = (videos[0]?.loaded && videos[0].el.currentTime) || 0;
+  const currentCombT = shift + masterT;
+
+  videos.forEach((v, i) => {
+    const dur = v.loaded && isFinite(v.el.duration) ? v.el.duration : 0;
+    const cs = combStarts[i];
+    const barL = (cs / totalDur * 100).toFixed(2);
+    const barW = (dur / totalDur * 100).toFixed(2);
+    const played = v.loaded ? clamp(masterT + v.offset, 0, dur) : 0;
+    const playedW = (played / totalDur * 100).toFixed(2);
+    const headPct = (currentCombT / totalDur * 100).toFixed(2);
+
+    const tvid  = document.getElementById('tvid-'  + v.id);
+    const tplay = document.getElementById('tplay-' + v.id);
+    const thead = document.getElementById('thead-' + v.id);
+    const ttime = document.getElementById('ttime-' + v.id);
+    const tc    = v.tileEl?.querySelector('.tile-tc');
+
+    if (tvid)  tvid.style.cssText  = `left:${barL}%;width:${barW}%;background:${hexToRgba(v.color,.18)};border:1.5px solid ${hexToRgba(v.color,.5)};box-sizing:border-box`;
+    if (tplay) tplay.style.cssText = `left:${barL}%;width:${playedW}%;background:${hexToRgba(v.color,.6)}`;
+    if (thead) thead.style.left    = headPct + '%';
+    if (ttime) ttime.textContent   = v.loaded ? fmt(v.el.currentTime) : '—';
+    if (tc && v.loaded) tc.textContent = fmt(v.el.currentTime);
+  });
+}
+
+// ══════════════════════════════════════════════
+// TIMESTAMP PARSING
+// ══════════════════════════════════════════════
 async function parseMp4CreationTime(file) {
   try {
     const buf = await file.slice(0, 2 * 1024 * 1024).arrayBuffer();
@@ -932,22 +1010,13 @@ async function parseMp4CreationTime(file) {
     let off = 0;
     while (off + 8 <= buf.byteLength) {
       let size = view.getUint32(off);
-      const type = String.fromCharCode(
-        view.getUint8(off+4), view.getUint8(off+5),
-        view.getUint8(off+6), view.getUint8(off+7)
-      );
-      if (size === 1 && off + 16 <= buf.byteLength) {
-        size = view.getUint32(off+8) * 4294967296 + view.getUint32(off+12);
-      }
+      const type = String.fromCharCode(view.getUint8(off+4),view.getUint8(off+5),view.getUint8(off+6),view.getUint8(off+7));
+      if (size === 1 && off + 16 <= buf.byteLength) size = view.getUint32(off+8)*4294967296 + view.getUint32(off+12);
       if (type === 'mvhd') {
         const ver = view.getUint8(off + 8);
-        let ct;
-        if (ver === 1) {
-          ct = view.getUint32(off+12) * 4294967296 + view.getUint32(off+16);
-        } else {
-          ct = view.getUint32(off + 12);
-        }
-        // MP4 epoch = 1904-01-01, delta to Unix = 2082844800 s
+        const ct = ver === 1
+          ? view.getUint32(off+12)*4294967296 + view.getUint32(off+16)
+          : view.getUint32(off+12);
         return (ct - 2082844800) * 1000;
       }
       if (containers.has(type)) { off += (size === 1 ? 16 : 8); continue; }
@@ -958,588 +1027,215 @@ async function parseMp4CreationTime(file) {
   return null;
 }
 
-async function parseTsAsync(file, which) {
-  const ts = await parseMp4CreationTime(file);
-  if (which === 'A') tsA = ts; else tsB = ts;
-  updateTsChip();
-  updateAlignBtn();
+async function parseTsAsync(vid) {
+  vid.tsMs = await parseMp4CreationTime(vid.file);
+  updateTsInfo(); updateAlignBtn();
 }
 
-function updateTsChip() {
-  const chip = document.getElementById('tsChip');
-  const fmtTs = ts => ts
-    ? new Date(ts).toLocaleString('zh-CN', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'})
-    : '无时间戳';
-  const parts = [];
-  if (loadedA) parts.push('A: ' + fmtTs(tsA));
-  if (loadedB) parts.push('B: ' + fmtTs(tsB));
-  chip.textContent = parts.join('  │  ');
+function updateTsInfo() {
+  const fmt2 = ts => ts ? new Date(ts).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '无时间戳';
+  document.getElementById('tsInfo').textContent = videos.map(v => `${v.label}: ${fmt2(v.tsMs)}`).join('  │  ');
 }
 
 function updateAlignBtn() {
-  document.getElementById('alignTsBtn').disabled = !(tsA && tsB);
+  document.getElementById('alignTsBtn').disabled = !(videos.length >= 2 && videos.every(v => v.tsMs !== null));
 }
-
-// ── 偏移控制 ──
-function setOffset(val) {
-  bOffset = parseFloat(val.toFixed(3));
-  offsetSlider.value = clamp(bOffset, -60, 60);
-  offsetNum.value = bOffset.toFixed(3);
-  // 同步 B 位置
-  if (loadedA && loadedB) {
-    const target = clamp(vA.currentTime + bOffset, 0, vB.duration || 0);
-    vB.currentTime = target;
-  }
-}
-
-offsetSlider.addEventListener('input', () => setOffset(parseFloat(offsetSlider.value)));
-offsetNum.addEventListener('change', () => setOffset(parseFloat(offsetNum.value) || 0));
-offsetNum.addEventListener('keydown', e => { if (e.key === 'Enter') setOffset(parseFloat(offsetNum.value) || 0); });
-
-document.querySelectorAll('.fine-btn').forEach(btn => {
-  btn.addEventListener('click', () => setOffset(bOffset + parseFloat(btn.dataset.delta)));
-});
-
-syncCurBtn.addEventListener('click', () => {
-  if (!loadedA || !loadedB) return;
-  setOffset(vB.currentTime - vA.currentTime);
-});
-
-resetOffsetBtn.addEventListener('click', () => setOffset(0));
 
 document.getElementById('alignTsBtn').addEventListener('click', () => {
-  if (!tsA || !tsB) return;
-  const durA = (vA.duration && isFinite(vA.duration)) ? vA.duration : 0;
-  const durB = (vB.duration && isFinite(vB.duration)) ? vB.duration : 0;
-  // 计算偏移：B 相对 A 的起始时间差（秒）
-  const offsetSec = (tsB - tsA) / 1000;
-  // 检查是否有时间重叠：A 范围 [0, durA]，B 映射到 A 时间轴上范围 [-offsetSec, -offsetSec+durB]
-  const aStart = 0, aEnd = durA;
-  const bStart = -offsetSec, bEnd = -offsetSec + durB;
-  if (durA > 0 && durB > 0 && (bStart >= aEnd || bEnd <= aStart)) {
-    alert('这两段视频的时间段无重合部分，无法对齐。\n\nA: ' +
-      new Date(tsA).toLocaleString('zh-CN') + '  时长 ' + fmtShort(durA) +
-      '\nB: ' + new Date(tsB).toLocaleString('zh-CN') + '  时长 ' + fmtShort(durB));
-    return;
-  }
-  setOffset(offsetSec);
-});
-
-// ── 播放同步 ──
-vA.addEventListener('timeupdate', () => {
-  if (!isSyncing && loadedB && !isDragging) {
-    const target = vA.currentTime + bOffset;
-    if (Math.abs(vB.currentTime - target) > 0.2) {
-      isSyncing = true;
-      vB.currentTime = clamp(target, 0, vB.duration || 0);
-      isSyncing = false;
+  if (videos.length < 2) return;
+  const masterTs = videos[0].tsMs;
+  for (let i = 1; i < videos.length; i++) {
+    const v = videos[i]; if (!v.tsMs) continue;
+    const newOff = (masterTs - v.tsMs) / 1000;
+    const durM = videos[0].el.duration || 0;
+    const durV = v.el.duration || 0;
+    const vStart = -newOff, vEnd = -newOff + durV;
+    if (durM > 0 && durV > 0 && (vStart >= durM || vEnd <= 0)) {
+      alert(`${v.label} 与主轨 A 的时间段无重合，无法对齐。\n\nA: ${new Date(masterTs).toLocaleString('zh-CN')}  时长 ${fmtShort(durM)}\n${v.label}: ${new Date(v.tsMs).toLocaleString('zh-CN')}  时长 ${fmtShort(durV)}`);
+      continue;
     }
+    setVideoOffset(v.id, newOff);
   }
 });
 
-// ── 播放 / 暂停 ──
-function setPlaying(val) {
-  playing = val;
-  iPlay.style.display = val ? 'none' : 'inline';
-  iPause.style.display = val ? 'inline' : 'none';
-}
-
-function doPlay() {
-  if (loadedA) vA.play().catch(() => {});
-  if (loadedB) {
-    const target = loadedA ? vA.currentTime + bOffset : vB.currentTime;
-    vB.currentTime = clamp(target, 0, vB.duration || 0);
-    vB.play().catch(() => {});
+// ══════════════════════════════════════════════
+// TICK LOOP
+// ══════════════════════════════════════════════
+function tick() {
+  const m = master();
+  if (m && videos[0]?.loaded) {
+    const T = m.currentTime, dur = m.duration || 0;
+    const pct = dur ? T / dur * 100 : 0;
+    document.getElementById('progressFill').style.width  = pct + '%';
+    document.getElementById('progressThumb').style.left  = pct + '%';
+    document.getElementById('timeTxt').textContent = `${fmtShort(T)} / ${fmtShort(dur)}`;
+    if (playing && trimOut !== null && T >= trimOut) { doPause(); m.currentTime = trimOut; }
+    if (!seekDragging) syncVideos();
   }
-  setPlaying(true);
-}
-function doPause() {
-  if (loadedA) vA.pause();
-  if (loadedB) vB.pause();
-  setPlaying(false);
-}
-function togglePlay() {
-  if (!loadedA && !loadedB) return;
-  playing ? doPause() : doPlay();
-}
-
-btnPlay.addEventListener('click', togglePlay);
-
-vA.addEventListener('ended', () => { if (!loadedB || vB.ended) setPlaying(false); });
-vB.addEventListener('ended', () => { if (!loadedA || vA.ended) setPlaying(false); });
-
-// ── 跳转 ──
-function seekDelta(delta) {
-  if (loadedA) vA.currentTime = clamp(vA.currentTime + delta, 0, vA.duration || 0);
-  if (loadedB) vB.currentTime = clamp((loadedA ? vA.currentTime : vB.currentTime + delta) + bOffset, 0, vB.duration || 0);
-}
-function seekPct(pct) {
-  const dur = (loadedA ? vA.duration : loadedB ? vB.duration : 0) || 0;
-  const t = pct * dur;
-  if (loadedA) vA.currentTime = t;
-  if (loadedB) vB.currentTime = clamp(t + bOffset, 0, vB.duration || 0);
-}
-
-btnBack.addEventListener('click', () => seekDelta(-5));
-btnFwd.addEventListener('click', () => seekDelta(5));
-
-// ── 进度条 ──
-progressTrack.addEventListener('mousedown', e => {
-  isDragging = true;
-  const pct = (e.clientX - progressTrack.getBoundingClientRect().left) / progressTrack.offsetWidth;
-  seekPct(clamp(pct, 0, 1));
-  const wasPlaying = playing;
-  doPause();
-  function onMove(ev) {
-    const p = clamp((ev.clientX - progressTrack.getBoundingClientRect().left) / progressTrack.offsetWidth, 0, 1);
-    seekPct(p);
-  }
-  function onUp() {
-    isDragging = false;
-    window.removeEventListener('mousemove', onMove);
-    window.removeEventListener('mouseup', onUp);
-    if (wasPlaying) doPlay();
-  }
-  window.addEventListener('mousemove', onMove);
-  window.addEventListener('mouseup', onUp);
-});
-
-// ── 音量 ──
-function applyMute(val) {
-  vA.muted = val;
-  iVol.style.display = val ? 'none' : 'inline';
-  iMute.style.display = val ? 'inline' : 'none';
-}
-btnMute.addEventListener('click', () => applyMute(!vA.muted));
-volRange.addEventListener('input', () => {
-  vA.volume = volRange.value;
-  applyMute(+volRange.value === 0);
-});
-
-// ── 速度 ──
-const SPEEDS = [0.1, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
-let speedIdx = SPEEDS.indexOf(1);
-const speedDisp = document.getElementById('speedDisp');
-const btnSpeedDown = document.getElementById('btnSpeedDown');
-const btnSpeedUp   = document.getElementById('btnSpeedUp');
-
-function applySpeed(idx) {
-  speedIdx = Math.max(0, Math.min(SPEEDS.length - 1, idx));
-  const s = SPEEDS[speedIdx];
-  vA.playbackRate = s;
-  vB.playbackRate = s;
-  speedDisp.textContent = s + '×';
-  btnSpeedDown.disabled = speedIdx === 0;
-  btnSpeedUp.disabled   = speedIdx === SPEEDS.length - 1;
-}
-btnSpeedDown.addEventListener('click', () => applySpeed(speedIdx - 1));
-btnSpeedUp.addEventListener('click',   () => applySpeed(speedIdx + 1));
-applySpeed(speedIdx);
-
-// ── 裁剪 ──
-let trimIn  = null;   // A 的时间轴（秒），null = 未设
-let trimOut = null;
-
-const trimRegion    = document.getElementById('trimRegion');
-const trimHandleIn  = document.getElementById('trimHandleIn');
-const trimHandleOut = document.getElementById('trimHandleOut');
-const trimInfo      = document.getElementById('trimInfo');
-const btnTrimIn     = document.getElementById('btnTrimIn');
-const btnTrimOut    = document.getElementById('btnTrimOut');
-const btnTrimClear  = document.getElementById('btnTrimClear');
-
-function updateTrimUI() {
-  const master = loadedA ? vA : loadedB ? vB : null;
-  const dur = master ? (master.duration || 0) : 0;
-  const hasIn  = trimIn  !== null;
-  const hasOut = trimOut !== null;
-
-  btnTrimIn.classList.toggle('set', hasIn);
-  btnTrimOut.classList.toggle('set', hasOut);
-
-  if (!dur || (!hasIn && !hasOut)) {
-    trimRegion.style.display   = 'none';
-    trimHandleIn.style.display  = 'none';
-    trimHandleOut.style.display = 'none';
-    trimInfo.textContent = '';
-    return;
-  }
-
-  const inT  = hasIn  ? trimIn  : 0;
-  const outT = hasOut ? trimOut : dur;
-  const inPct  = inT  / dur * 100;
-  const outPct = outT / dur * 100;
-
-  trimRegion.style.display = 'block';
-  trimRegion.style.left  = inPct + '%';
-  trimRegion.style.width = (outPct - inPct) + '%';
-
-  trimHandleIn.style.display  = hasIn  ? 'block' : 'none';
-  trimHandleOut.style.display = hasOut ? 'block' : 'none';
-  if (hasIn)  trimHandleIn.style.left  = inPct  + '%';
-  if (hasOut) trimHandleOut.style.left = outPct + '%';
-
-  const inStr  = hasIn  ? fmtShort(trimIn)  : '0:00';
-  const outStr = hasOut ? fmtShort(trimOut) : fmtShort(dur);
-  trimInfo.textContent = `${inStr} → ${outStr}  (${fmtShort(outT - inT)})`;
-}
-
-function setTrimIn(t) {
-  trimIn = parseFloat(t.toFixed(3));
-  if (trimOut !== null && trimIn >= trimOut) trimOut = null;
   updateTrimUI();
+  updateTrackVisuals();
+  requestAnimationFrame(tick);
 }
-function setTrimOut(t) {
-  trimOut = parseFloat(t.toFixed(3));
-  if (trimIn !== null && trimOut <= trimIn) trimIn = null;
-  updateTrimUI();
-}
-function clearTrim() {
-  trimIn = null; trimOut = null;
-  updateTrimUI();
-}
+requestAnimationFrame(tick);
 
-btnTrimIn.addEventListener('click', () => {
-  const master = loadedA ? vA : loadedB ? vB : null;
-  if (master) setTrimIn(master.currentTime);
-});
-btnTrimOut.addEventListener('click', () => {
-  const master = loadedA ? vA : loadedB ? vB : null;
-  if (master) setTrimOut(master.currentTime);
-});
-btnTrimClear.addEventListener('click', clearTrim);
-
-// 拖拽裁剪手柄
-function makeTrimDrag(handle, setter) {
-  handle.addEventListener('mousedown', e => {
-    e.stopPropagation();
-    const track = progressTrack;
-    const onMove = ev => {
-      const rect = track.getBoundingClientRect();
-      const pct  = clamp((ev.clientX - rect.left) / rect.width, 0, 1);
-      const master = loadedA ? vA : loadedB ? vB : null;
-      if (master) setter(pct * (master.duration || 0));
-    };
-    const onUp = () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-  });
-}
-makeTrimDrag(trimHandleIn,  setTrimIn);
-makeTrimDrag(trimHandleOut, setTrimOut);
-
-// ── 键盘 ──
+// ══════════════════════════════════════════════
+// KEYBOARD
+// ══════════════════════════════════════════════
 document.addEventListener('keydown', e => {
   const tag = document.activeElement.tagName;
   if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
-  if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
-  if (e.code === 'ArrowLeft') { e.preventDefault(); seekDelta(e.altKey ? -1/30 : -1); }
-  if (e.code === 'ArrowRight') { e.preventDefault(); seekDelta(e.altKey ? 1/30 : 1); }
+  if (e.code === 'Space')      { e.preventDefault(); togglePlay(); }
+  if (e.code === 'ArrowLeft')  { e.preventDefault(); seekDelta(e.altKey ? -1/30 : -1); }
+  if (e.code === 'ArrowRight') { e.preventDefault(); seekDelta(e.altKey ?  1/30 :  1); }
   if (e.code === 'KeyJ') seekDelta(-5);
-  if (e.code === 'KeyL') seekDelta(5);
+  if (e.code === 'KeyL') seekDelta( 5);
   if (e.code === 'KeyK') togglePlay();
-  if (e.code === 'KeyI') { const m = loadedA ? vA : loadedB ? vB : null; if (m) setTrimIn(m.currentTime); }
-  if (e.code === 'KeyO') { const m = loadedA ? vA : loadedB ? vB : null; if (m) setTrimOut(m.currentTime); }
+  if (e.code === 'KeyI') document.getElementById('btnTrimIn').click();
+  if (e.code === 'KeyO') document.getElementById('btnTrimOut').click();
 });
 
-// ── 动画更新 ──
-function tick() {
-  // 进度条（以 A 为主，如 A 未加载则用 B）
-  const master = loadedA ? vA : loadedB ? vB : null;
-  if (master) {
-    const t = master.currentTime;
-    const dur = master.duration || 0;
-    const pct = dur ? (t / dur * 100) : 0;
-    progressFill.style.width = pct + '%';
-    progressThumb.style.left = pct + '%';
-    timeTxt.textContent = `${fmtShort(t)} / ${fmtShort(dur)}`;
-    // 到达出点时自动暂停
-    if (playing && trimOut !== null && t >= trimOut) {
-      doPause();
-      master.currentTime = trimOut;
-    }
-  }
-  if (loadedA) tcA.textContent = fmt(vA.currentTime);
-  if (loadedB) tcB.textContent = fmt(vB.currentTime);
-  if (loadedA || loadedB) updateDualTracks();
-  animId = requestAnimationFrame(tick);
-}
-
-function updateDualTracks() {
-  const durA = (loadedA && vA.duration && isFinite(vA.duration)) ? vA.duration : 0;
-  const durB = (loadedB && vB.duration && isFinite(vB.duration)) ? vB.duration : 0;
-  if (!durA && !durB) return;
-
-  // A 在合并时间轴上的起点、B 在合并时间轴上的起点
-  // bOffset>0 表示 B 超前（B 先开始录），故 A 的起点在后
-  const oA = Math.max(0,  bOffset);
-  const oB = Math.max(0, -bOffset);
-  const totalDur = Math.max(oA + durA, oB + durB) || 1;
-
-  const p = v => (v / totalDur * 100).toFixed(3) + '%';
-
-  // Track A
-  const vidAL = oA / totalDur * 100;
-  const vidAW = durA / totalDur * 100;
-  const playedAW = loadedA ? Math.min(vA.currentTime / totalDur * 100, vidAW) : 0;
-  const headA   = loadedA ? (oA + vA.currentTime) / totalDur * 100 : vidAL;
-
-  document.getElementById('dualVidA').style.cssText    = `left:${vidAL.toFixed(3)}%;width:${vidAW.toFixed(3)}%`;
-  document.getElementById('dualPlayedA').style.cssText = `left:${vidAL.toFixed(3)}%;width:${playedAW.toFixed(3)}%`;
-  document.getElementById('dualHeadA').style.left      = headA.toFixed(3) + '%';
-  document.getElementById('dualTimeA').textContent     = loadedA ? fmt(vA.currentTime) : '—';
-
-  // Track B
-  const vidBL = oB / totalDur * 100;
-  const vidBW = durB / totalDur * 100;
-  const playedBW = loadedB ? Math.min(vB.currentTime / totalDur * 100, vidBW) : 0;
-  const headB   = loadedB ? (oB + vB.currentTime) / totalDur * 100 : vidBL;
-
-  document.getElementById('dualVidB').style.cssText    = `left:${vidBL.toFixed(3)}%;width:${vidBW.toFixed(3)}%`;
-  document.getElementById('dualPlayedB').style.cssText = `left:${vidBL.toFixed(3)}%;width:${playedBW.toFixed(3)}%`;
-  document.getElementById('dualHeadB').style.left      = headB.toFixed(3) + '%';
-  document.getElementById('dualTimeB').textContent     = loadedB ? fmt(vB.currentTime) : '—';
-}
-
-// 双导轨点击跳转
-['dualWrapA','dualWrapB'].forEach(id => {
-  document.getElementById(id).addEventListener('click', e => {
-    if (!loadedA && !loadedB) return;
-    const el = document.getElementById(id);
-    const pct = clamp((e.clientX - el.getBoundingClientRect().left) / el.offsetWidth, 0, 1);
-    const durA = (loadedA && vA.duration && isFinite(vA.duration)) ? vA.duration : 0;
-    const durB = (loadedB && vB.duration && isFinite(vB.duration)) ? vB.duration : 0;
-    const oA = Math.max(0,  bOffset);
-    const oB = Math.max(0, -bOffset);
-    const totalDur = Math.max(oA + durA, oB + durB) || 1;
-    const combinedT = pct * totalDur;
-    const tA = combinedT - oA;
-    if (loadedA) vA.currentTime = clamp(tA, 0, durA);
-    if (loadedB) vB.currentTime = clamp(tA + bOffset, 0, durB);
-  });
+// ══════════════════════════════════════════════
+// EXPORT
+// ══════════════════════════════════════════════
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const loaded = videos.filter(v => v.loaded);
+  if (!loaded.length) return;
+  const defName = loaded.map(v => stripExt(v.name)).join('_vs_');
+  document.getElementById('exportNameInput').value = defName;
+  document.getElementById('nameDialog').classList.add('show');
+  setTimeout(() => { const inp = document.getElementById('exportNameInput'); inp.focus(); inp.select(); }, 50);
 });
-animId = requestAnimationFrame(tick);
-
-// ══════════════════════════════════════════
-// 导出功能
-// ══════════════════════════════════════════
-// ── 命名对话框 ──
-const nameDialog = document.getElementById('nameDialog');
-const exportNameInput = document.getElementById('exportNameInput');
-const nameCancelBtn = document.getElementById('nameCancelBtn');
-const nameConfirmBtn = document.getElementById('nameConfirmBtn');
-
-function stripExt(name) { return name.replace(/\.[^.]+$/, ''); }
-
-exportBtn.addEventListener('click', () => {
-  if (!loadedA || !loadedB) return;
-  // 预填默认名：A文件名 + B文件名
-  const defName = `${stripExt(panelFnameA.textContent)}_vs_${stripExt(panelFnameB.textContent)}`;
-  exportNameInput.value = defName;
-  nameDialog.classList.add('show');
-  setTimeout(() => { exportNameInput.focus(); exportNameInput.select(); }, 50);
+document.getElementById('nameCancelBtn').addEventListener('click', () => document.getElementById('nameDialog').classList.remove('show'));
+document.getElementById('nameDialog').addEventListener('click', e => { if (e.target === document.getElementById('nameDialog')) document.getElementById('nameDialog').classList.remove('show'); });
+document.getElementById('exportNameInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('nameConfirmBtn').click();
+  if (e.key === 'Escape') document.getElementById('nameDialog').classList.remove('show');
 });
-
-nameCancelBtn.addEventListener('click', () => nameDialog.classList.remove('show'));
-nameDialog.addEventListener('click', e => { if (e.target === nameDialog) nameDialog.classList.remove('show'); });
-exportNameInput.addEventListener('keydown', e => { if (e.key === 'Enter') nameConfirmBtn.click(); if (e.key === 'Escape') nameDialog.classList.remove('show'); });
-
-nameConfirmBtn.addEventListener('click', () => {
-  nameDialog.classList.remove('show');
-  startExport(exportNameInput.value.trim() || `对比_${Date.now()}`);
+document.getElementById('nameConfirmBtn').addEventListener('click', () => {
+  const name = document.getElementById('exportNameInput').value.trim() || `对比_${Date.now()}`;
+  document.getElementById('nameDialog').classList.remove('show');
+  startExport(name);
 });
-
-expCancelBtn.addEventListener('click', () => { exportCancel = true; });
+document.getElementById('expCancelBtn').addEventListener('click', () => { exportCancel = true; });
 
 async function startExport(exportFileName) {
-  if (!loadedA || !loadedB) return;
+  const loaded = videos.filter(v => v.loaded);
+  if (!loaded.length) return;
 
-  // 确定导出范围：以入点/出点为准，B 同步位置 = A 时间 + bOffset
-  const startA = trimIn !== null ? trimIn : 0;
-  const startB = clamp(startA + bOffset, 0, vB.duration || 0);
-  const durA = (vA.duration || 0) - startA;
-  const durB = (vB.duration || 0) - startB;
-  const rawDur = Math.min(durA, durB);
-  const exportDur = (trimOut !== null && trimIn !== null)
-    ? Math.min(trimOut - trimIn, rawDur)
-    : rawDur;
+  const startT = trimIn !== null ? trimIn : 0;
+  let exportDur = 0;
+  loaded.forEach(v => {
+    const dur = (v.el.duration || 0) - Math.max(0, startT + v.offset);
+    if (dur > 0) exportDur = Math.max(exportDur, dur);
+  });
+  if (trimIn !== null && trimOut !== null) exportDur = Math.min(trimOut - trimIn, exportDur);
+  if (exportDur <= 0) { alert('导出范围无效，请检查入点/出点设置。'); return; }
 
-  if (exportDur <= 0) {
-    alert('导出范围无效，请检查入点/出点设置或偏移量。');
-    return;
-  }
-
-  // 画布尺寸（等高缩放）
-  const wA = vA.videoWidth || 640;
-  const hA = vA.videoHeight || 480;
-  const wB = vB.videoWidth || 640;
-  const hB = vB.videoHeight || 480;
-  const canvasH = Math.max(hA, hB, 480);
-  const scaleA = canvasH / hA;
-  const scaleB = canvasH / hB;
-  const drawWA = Math.round(wA * scaleA);
-  const drawWB = Math.round(wB * scaleB);
-  const canvasW = drawWA + drawWB;
+  const canvasH = Math.max(480, ...loaded.map(v => v.el.videoHeight || 480));
+  const panelWidths = loaded.map(v => Math.round((v.el.videoWidth || 640) * (canvasH / (v.el.videoHeight || 480))));
+  const canvasW = panelWidths.reduce((a,b) => a+b, 0);
 
   const canvas = document.createElement('canvas');
-  canvas.width = canvasW;
-  canvas.height = canvasH;
+  canvas.width = canvasW; canvas.height = canvasH;
   const ctx = canvas.getContext('2d');
 
-  // 检查支持的编码格式，优先 MP4/MOV
-  const mimeTypes = [
-    'video/mp4;codecs=h264,aac',
-    'video/mp4;codecs=avc1',
-    'video/mp4',
-    'video/webm;codecs=vp9',
-    'video/webm;codecs=vp8',
-    'video/webm',
-  ];
+  const mimeTypes = ['video/mp4;codecs=h264,aac','video/mp4;codecs=avc1','video/mp4','video/webm;codecs=vp9','video/webm'];
   const mimeType = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm';
   const fileExt = mimeType.startsWith('video/mp4') ? 'mp4' : 'webm';
-  document.getElementById('nameExt').textContent = '.' + fileExt;
 
-  // 流 = 视频（画布）+ 音频（A 的音频）
   const canvasStream = canvas.captureStream(30);
   try {
-    // 尝试添加 A 的音频轨道
-    const audioCtx = new AudioContext();
-    const srcA = audioCtx.createMediaElementSource(vA);
-    const dest = audioCtx.createMediaStreamDestination();
-    srcA.connect(dest);
-    srcA.connect(audioCtx.destination); // 保持监听
+    const actx = new AudioContext();
+    const src = actx.createMediaElementSource(loaded[0].el);
+    const dest = actx.createMediaStreamDestination();
+    src.connect(dest); src.connect(actx.destination);
     dest.stream.getAudioTracks().forEach(t => canvasStream.addTrack(t));
-  } catch (_) { /* 没有音频也可以 */ }
+  } catch (_) {}
 
-  const recorder = new MediaRecorder(canvasStream, {
-    mimeType,
-    videoBitsPerSecond: 80_000_000,  // 80 Mbps 高质量
-  });
-
+  const recorder = new MediaRecorder(canvasStream, { mimeType, videoBitsPerSecond: 80_000_000 });
   const chunks = [];
   recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
 
   exportCancel = false;
+  const overlay = document.getElementById('exportOverlay');
+  overlay.classList.add('show');
+  document.getElementById('expPct').textContent = '0%';
+  document.getElementById('expFill').style.width = '0%';
+  document.getElementById('expSub').textContent = `导出中… 时长 ${fmtShort(exportDur)}`;
 
-  // 显示遮罩
-  exportOverlay.classList.add('show');
-  expPct.textContent = '0%';
-  expFill.style.width = '0%';
-  expSub.textContent = `正在导出 ${fmtShort(exportDur)} 的视频…`;
-
-  // 暂停当前播放
   doPause();
 
-  // 定位视频起点
-  await seekBoth(startA, startB);
+  // Seek to start
+  await new Promise(resolve => {
+    let done = 0;
+    loaded.forEach(v => {
+      const t = clamp(startT + v.offset, 0, v.el.duration || 0);
+      v.el.addEventListener('seeked', () => { if (++done >= loaded.length) resolve(); }, { once: true });
+      v.el.currentTime = t;
+    });
+  });
 
-  // 绘制帧的循环（在录制开始前先等待一帧）
   let frameId;
   function drawFrame() {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, canvasW, canvasH);
-    // A：居中绘制在左半
-    const offYA = Math.round((canvasH - hA * scaleA) / 2);
-    ctx.drawImage(vA, 0, offYA, drawWA, hA * scaleA);
-    // B：居中绘制在右半
-    const offYB = Math.round((canvasH - hB * scaleB) / 2);
-    ctx.drawImage(vB, drawWA, offYB, drawWB, hB * scaleB);
-    // 标签（含备注）
-    drawLabel(ctx, 'A', document.getElementById('noteA').value, 12, 12, '#4a9eff');
-    drawLabel(ctx, 'B', document.getElementById('noteB').value, drawWA + 12, 12, '#ff6b6b');
+    let x = 0;
+    loaded.forEach((v, li) => {
+      const pw = panelWidths[li];
+      try { ctx.drawImage(v.el, x, 0, pw, canvasH); } catch (_) {}
+      // Badge label
+      const fs = Math.round(canvasH * 0.022);
+      ctx.font = `bold ${fs}px system-ui,sans-serif`;
+      const pad = fs * 0.5, bw = ctx.measureText(v.label).width + pad * 2, bh = fs + fs * 0.7;
+      ctx.fillStyle = v.color; ctx.fillRect(x + 10, 10, bw, bh);
+      ctx.fillStyle = '#fff'; ctx.fillText(v.label, x + 10 + pad, 10 + fs * 0.95);
+      if (v.note) {
+        ctx.font = `${fs}px system-ui,sans-serif`;
+        const nw = ctx.measureText(v.note).width + pad;
+        ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(x + 10 + bw, 10, nw, bh);
+        ctx.fillStyle = '#fff'; ctx.fillText(v.note, x + 10 + bw + pad * 0.5, 10 + fs * 0.95);
+      }
+      x += pw;
+    });
     frameId = requestAnimationFrame(drawFrame);
   }
-  function drawLabel(ctx, letter, note, x, y, color) {
-    const fontSize = Math.round(canvasH * 0.022);
-    ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
-    const noteText = note ? `  ${note}` : '';
-    const fullText = letter + noteText;
-    const letterW = ctx.measureText(letter).width;
-    const totalW = ctx.measureText(fullText).width;
-    const padX = fontSize * 0.4, padY = fontSize * 0.3;
-    const boxH = fontSize + padY * 2;
-    // 字母色块
-    ctx.fillStyle = color;
-    ctx.fillRect(x, y, letterW + padX * 2, boxH);
-    // 备注底色
-    if (noteText) {
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillRect(x + letterW + padX * 2, y, totalW - letterW + padX, boxH);
-    }
-    // 字母
-    ctx.fillStyle = '#fff';
-    ctx.fillText(letter, x + padX, y + padY + fontSize * 0.85);
-    // 备注文字
-    if (noteText) {
-      ctx.fillStyle = '#eee';
-      ctx.font = `${fontSize}px system-ui, sans-serif`;
-      ctx.fillText(noteText.trim(), x + letterW + padX * 2 + padX * 0.5, y + padY + fontSize * 0.85);
-    }
-  }
 
-  // 录制开始前已通过 seekBoth 定位到对齐起点，直接开录并播放
   frameId = requestAnimationFrame(drawFrame);
-  recorder.start(200);  // 每 200ms 收集一次数据
-  vA.play().catch(() => {});
-  vB.play().catch(() => {});
+  recorder.start(200);
+  loaded.forEach(v => v.el.play().catch(() => {}));
 
-  // 监控进度
-  const startTime = performance.now();
+  const t0 = performance.now();
   await new Promise(resolve => {
-    function checkProgress() {
+    function check() {
       if (exportCancel) { resolve('cancel'); return; }
-      const elapsed = (performance.now() - startTime) / 1000;
-      const pct = Math.min(100, (elapsed / exportDur) * 100);
-      expPct.textContent = Math.round(pct) + '%';
-      expFill.style.width = pct + '%';
-      if (elapsed >= exportDur || (vA.ended && vB.ended)) {
-        resolve('done');
-      } else {
-        setTimeout(checkProgress, 200);
-      }
+      const elapsed = (performance.now() - t0) / 1000;
+      const pct = Math.min(100, elapsed / exportDur * 100);
+      document.getElementById('expPct').textContent = Math.round(pct) + '%';
+      document.getElementById('expFill').style.width = pct + '%';
+      if (elapsed >= exportDur || loaded.every(v => v.el.ended)) resolve('done');
+      else setTimeout(check, 200);
     }
-    checkProgress();
+    check();
   }).then(async reason => {
     cancelAnimationFrame(frameId);
-    vA.pause(); vB.pause();
+    loaded.forEach(v => v.el.pause());
     recorder.stop();
-
-    if (reason === 'cancel') {
-      exportOverlay.classList.remove('show');
-      return;
-    }
-
-    expSub.textContent = '处理中，请稍候…';
-    expPct.textContent = '100%';
-    expFill.style.width = '100%';
-
+    if (reason === 'cancel') { overlay.classList.remove('show'); return; }
+    document.getElementById('expSub').textContent = '处理中，请稍候…';
+    document.getElementById('expFill').style.width = '100%';
+    document.getElementById('expPct').textContent = '100%';
     await new Promise(r => { recorder.onstop = r; });
-
     const blob = new Blob(chunks, { type: mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = `${exportFileName}.${fileExt}`;
-    a.click();
+    a.href = url; a.download = `${exportFileName}.${fileExt}`; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
-
-    exportOverlay.classList.remove('show');
+    overlay.classList.remove('show');
   });
 }
 
-function seekBoth(tA, tB) {
-  return new Promise(resolve => {
-    let doneA = false, doneB = false;
-    function check() { if (doneA && doneB) resolve(); }
-    vA.addEventListener('seeked', () => { doneA = true; check(); }, {once: true});
-    vB.addEventListener('seeked', () => { doneB = true; check(); }, {once: true});
-    vA.currentTime = tA;
-    vB.currentTime = tB;
-  });
-}
+// Init
+updateAll();
 </script>
 </body>
 </html>
