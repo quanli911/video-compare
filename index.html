@@ -1217,14 +1217,14 @@ async function startExport(exportFileName) {
   }
 
   async function seekToStart() {
-    await new Promise(resolve => {
-      let n = 0;
-      loaded.forEach(v => {
-        const t = clamp(startT + v.offset, 0, v.el.duration || 0);
-        v.el.addEventListener('seeked', () => { if (++n >= loaded.length) resolve(); }, { once: true });
-        v.el.currentTime = t;
-      });
-    });
+    await Promise.all(loaded.map(v => new Promise(resolve => {
+      const t = clamp(startT + v.offset, 0, v.el.duration || 0);
+      // Already at target — no seeked event will fire
+      if (Math.abs(v.el.currentTime - t) < 0.001) { resolve(); return; }
+      const tid = setTimeout(resolve, 3000); // safety fallback
+      v.el.addEventListener('seeked', () => { clearTimeout(tid); resolve(); }, { once: true });
+      v.el.currentTime = t;
+    })));
   }
 
   function download(blob, ext) {
@@ -1260,10 +1260,15 @@ async function startExport(exportFileName) {
         const masterEl = loaded[0].el;
         let frameIdx = 0;
         await new Promise(resolve => {
+          // Independent cancel watcher — fires even if rVFC never triggers
+          const cancelTid = setInterval(() => {
+            if (exportCancel) { clearInterval(cancelTid); resolve(); }
+          }, 150);
+
           function onFrame() {
-            if (exportCancel || encErr) { resolve(); return; }
+            if (exportCancel || encErr) { clearInterval(cancelTid); resolve(); return; }
             const masterT = masterEl.currentTime, ct = masterT - startT;
-            if (ct >= exportDur || masterEl.ended) { resolve(); return; }
+            if (ct >= exportDur || masterEl.ended) { clearInterval(cancelTid); resolve(); return; }
             for (let i=1; i<loaded.length; i++) {
               const v = loaded[i]; if (!isFinite(v.el.duration)) continue;
               const tgt = clamp(masterT+v.offset, 0, v.el.duration);
@@ -1274,7 +1279,7 @@ async function startExport(exportFileName) {
               const vf = new VideoFrame(canvas, { timestamp: Math.round(Math.max(0,ct)*1_000_000) });
               encoder.encode(vf, { keyFrame: frameIdx%60===0 });
               vf.close();
-            } catch(e) { encErr=e; resolve(); return; }
+            } catch(e) { encErr=e; clearInterval(cancelTid); resolve(); return; }
             frameIdx++;
             setProgress(Math.min(98, ct/exportDur*100));
             masterEl.requestVideoFrameCallback(onFrame);
