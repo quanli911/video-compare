@@ -1219,10 +1219,12 @@ async function startExport(exportFileName) {
     setTimeout(() => URL.revokeObjectURL(url), 5000);
   }
 
-  // ── Fast path: WebCodecs + requestVideoFrameCallback (4× speed) ──
-  const canFast = typeof VideoEncoder !== 'undefined' &&
-                  typeof VideoFrame !== 'undefined' &&
-                  typeof loaded[0].el.requestVideoFrameCallback === 'function';
+  // ── Fast path: WebCodecs + requestAnimationFrame (4× speed) ──
+  // rAF is used instead of requestVideoFrameCallback because the export overlay
+  // covers video elements (z-index:200), causing the browser to stop compositing
+  // them and never fire rVFC callbacks. rAF fires on every display refresh
+  // regardless of whether the video is visually covered.
+  const canFast = typeof VideoEncoder !== 'undefined' && typeof VideoFrame !== 'undefined';
   if (canFast) {
     // Load mp4-muxer with timeout + cancel support (import itself can hang)
     let Mux = null;
@@ -1234,7 +1236,8 @@ async function startExport(exportFileName) {
     ]);
     if (exportCancel) { overlay.classList.remove('show'); return; }
     if (Mux) {
-      setProgress(0, `快速导出中 (4× 加速)… 约 ${fmtShort(exportDur/4)} 完成`);
+      const RATE = 4;
+      setProgress(0, `快速导出中 (${RATE}× 加速)… 约 ${fmtShort(exportDur/RATE)} 完成`);
       const muxTarget = new Mux.ArrayBufferTarget();
       const muxer = new Mux.Muxer({ target: muxTarget, video: { codec:'avc', width:canvasW, height:canvasH }, fastStart:'in-memory' });
       let encErr = null;
@@ -1248,20 +1251,14 @@ async function startExport(exportFileName) {
       }
       if (cfgOk) {
         await seekToStart();
-        const RATE = 4;
         loaded.forEach(v => { v.el.playbackRate = RATE; });
         const masterEl = loaded[0].el;
-        let frameIdx = 0;
+        let frameIdx = 0, rafId = 0;
         await new Promise(resolve => {
-          // Independent cancel watcher — fires even if rVFC never triggers
-          const cancelTid = setInterval(() => {
-            if (exportCancel) { clearInterval(cancelTid); resolve(); }
-          }, 150);
-
-          function onFrame() {
-            if (exportCancel || encErr) { clearInterval(cancelTid); resolve(); return; }
+          function captureFrame() {
+            if (exportCancel || encErr) { resolve(); return; }
             const masterT = masterEl.currentTime, ct = masterT - startT;
-            if (ct >= exportDur || masterEl.ended) { clearInterval(cancelTid); resolve(); return; }
+            if (ct >= exportDur || masterEl.ended) { resolve(); return; }
             for (let i=1; i<loaded.length; i++) {
               const v = loaded[i]; if (!isFinite(v.el.duration)) continue;
               const tgt = clamp(masterT+v.offset, 0, v.el.duration);
@@ -1272,14 +1269,15 @@ async function startExport(exportFileName) {
               const vf = new VideoFrame(canvas, { timestamp: Math.round(Math.max(0,ct)*1_000_000) });
               encoder.encode(vf, { keyFrame: frameIdx%60===0 });
               vf.close();
-            } catch(e) { encErr=e; clearInterval(cancelTid); resolve(); return; }
+            } catch(e) { encErr=e; resolve(); return; }
             frameIdx++;
             setProgress(Math.min(98, ct/exportDur*100));
-            masterEl.requestVideoFrameCallback(onFrame);
+            rafId = requestAnimationFrame(captureFrame);
           }
           loaded.forEach(v => v.el.play().catch(()=>{}));
-          masterEl.requestVideoFrameCallback(onFrame);
+          rafId = requestAnimationFrame(captureFrame);
         });
+        cancelAnimationFrame(rafId);
         loaded.forEach(v => { v.el.pause(); v.el.playbackRate = SPEEDS[speedIdx]; });
         if (!exportCancel && !encErr) {
           setProgress(99, '打包中，请稍候…');
