@@ -1284,8 +1284,9 @@ function updateDualTracks() {
   if (!durA && !durB) return;
 
   // A 在合并时间轴上的起点、B 在合并时间轴上的起点
-  const oA = Math.max(0, -bOffset);
-  const oB = Math.max(0,  bOffset);
+  // bOffset>0 表示 B 超前（B 先开始录），故 A 的起点在后
+  const oA = Math.max(0,  bOffset);
+  const oB = Math.max(0, -bOffset);
   const totalDur = Math.max(oA + durA, oB + durB) || 1;
 
   const p = v => (v / totalDur * 100).toFixed(3) + '%';
@@ -1321,8 +1322,8 @@ function updateDualTracks() {
     const pct = clamp((e.clientX - el.getBoundingClientRect().left) / el.offsetWidth, 0, 1);
     const durA = (loadedA && vA.duration && isFinite(vA.duration)) ? vA.duration : 0;
     const durB = (loadedB && vB.duration && isFinite(vB.duration)) ? vB.duration : 0;
-    const oA = Math.max(0, -bOffset);
-    const oB = Math.max(0,  bOffset);
+    const oA = Math.max(0,  bOffset);
+    const oB = Math.max(0, -bOffset);
     const totalDur = Math.max(oA + durA, oB + durB) || 1;
     const combinedT = pct * totalDur;
     const tA = combinedT - oA;
