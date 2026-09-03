@@ -409,10 +409,9 @@ body{
 // ══════════════════════════════════════════════
 // CONFIG
 // ══════════════════════════════════════════════
-const VERSION = 'v2.2';
+const VERSION = 'v2.1';
 const VERSIONS = [
-  { ver: 'v2.2', file: 'index.html',         desc: '导出4×加速·WebCodecs' },
-  { ver: 'v2.1', file: 'versions/v2.1.html', desc: '布局导出对齐·码率自适应' },
+  { ver: 'v2.1', file: 'index.html',         desc: '布局导出对齐·码率自适应' },
   { ver: 'v2.0', file: 'versions/v2.0.html', desc: '多视频·自由布局' },
   { ver: 'v1.1', file: 'versions/v1.1.html', desc: '双视频对比' },
 ];
@@ -1143,7 +1142,7 @@ async function startExport(exportFileName) {
   if (trimIn !== null && trimOut !== null) exportDur = Math.min(trimOut - trimIn, exportDur);
   if (exportDur <= 0) { alert('导出范围无效，请检查入点/出点设置。'); return; }
 
-  // ── Canvas layout from tile body positions ──
+  // Compute canvas layout from actual tile body positions in the grid
   const gridEl = document.getElementById('videoGrid');
   const gridRect = gridEl.getBoundingClientRect();
   const tileLayouts = loaded.map(v => {
@@ -1176,68 +1175,10 @@ async function startExport(exportFileName) {
   canvas.width = canvasW; canvas.height = canvasH;
   const ctx = canvas.getContext('2d');
 
-  // ── Shared draw helper ──
-  function drawTiles() {
-    ctx.fillStyle = '#d8dadd';
-    ctx.fillRect(0, 0, canvasW, canvasH);
-    tileLayouts.forEach(({ vid, nx, ny, nw, nh }) => {
-      const cx = nx*canvasW, cy = ny*canvasH, cw = nw*canvasW, ch = nh*canvasH;
-      ctx.fillStyle = '#000'; ctx.fillRect(cx, cy, cw, ch);
-      const vw = vid.el.videoWidth||640, vh = vid.el.videoHeight||480;
-      const sc = Math.min(cw/vw, ch/vh);
-      const dw = vw*sc, dh = vh*sc, dx = cx+(cw-dw)/2, dy = cy+(ch-dh)/2;
-      try { ctx.drawImage(vid.el, dx, dy, dw, dh); } catch(_) {}
-      const fs = Math.round(Math.min(cw,ch)*0.04); if (fs<6) return;
-      ctx.font = `bold ${fs}px system-ui,sans-serif`;
-      const pad = fs*0.5, bw = ctx.measureText(vid.label).width+pad*2, bh = fs+fs*0.65;
-      ctx.fillStyle = vid.color; ctx.fillRect(dx+8,dy+8,bw,bh);
-      ctx.fillStyle = '#fff'; ctx.fillText(vid.label, dx+8+pad, dy+8+fs*0.92);
-      if (vid.note) {
-        ctx.font = `${fs}px system-ui,sans-serif`;
-        const nw2 = ctx.measureText(vid.note).width+pad;
-        ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(dx+8+bw,dy+8,nw2,bh);
-        ctx.fillStyle = '#fff'; ctx.fillText(vid.note, dx+8+bw+pad*0.4, dy+8+fs*0.92);
-      }
-    });
-  }
-
-  const estimatedBitrate = loaded.reduce((sum,v) => sum + Math.round(v.file.size*8/(v.el.duration||1)), 0);
-
-  exportCancel = false;
-  const overlay = document.getElementById('exportOverlay');
-  overlay.classList.add('show');
-  document.getElementById('expPct').textContent = '0%';
-  document.getElementById('expFill').style.width = '0%';
-  doPause();
-
-  function setProgress(pct, sub) {
-    document.getElementById('expPct').textContent = Math.round(pct) + '%';
-    document.getElementById('expFill').style.width = pct + '%';
-    if (sub !== undefined) document.getElementById('expSub').textContent = sub;
-  }
-
-  async function seekToStart() {
-    await new Promise(resolve => {
-      let n = 0;
-      loaded.forEach(v => {
-        const t = clamp(startT + v.offset, 0, v.el.duration || 0);
-        v.el.addEventListener('seeked', () => { if (++n >= loaded.length) resolve(); }, { once: true });
-        v.el.currentTime = t;
-      });
-    });
-  }
-
-  function download(blob, ext) {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `${exportFileName}.${ext}`; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
-  }
-
-  // ── Export: MediaRecorder ──
-  setProgress(0, `导出中… 时长 ${fmtShort(exportDur)}`);
   const mimeTypes = ['video/mp4;codecs=h264,aac','video/mp4;codecs=avc1','video/mp4','video/webm;codecs=vp9','video/webm'];
   const mimeType = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm';
   const fileExt = mimeType.startsWith('video/mp4') ? 'mp4' : 'webm';
+
   const canvasStream = canvas.captureStream(30);
   try {
     const actx = new AudioContext();
@@ -1245,35 +1186,108 @@ async function startExport(exportFileName) {
     const dest = actx.createMediaStreamDestination();
     src.connect(dest); src.connect(actx.destination);
     dest.stream.getAudioTracks().forEach(t => canvasStream.addTrack(t));
-  } catch(_) {}
+  } catch (_) {}
+
+  // Estimate target bitrate from input files (sum of each video's bitrate)
+  const estimatedBitrate = loaded.reduce((sum, v) => {
+    const dur = v.el.duration || 1;
+    return sum + Math.round(v.file.size * 8 / dur);
+  }, 0);
   const recorder = new MediaRecorder(canvasStream, { mimeType, videoBitsPerSecond: estimatedBitrate });
   const chunks = [];
   recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
-  await seekToStart();
-  let rafId;
-  function drawLoop() { drawTiles(); rafId = requestAnimationFrame(drawLoop); }
-  rafId = requestAnimationFrame(drawLoop);
+
+  exportCancel = false;
+  const overlay = document.getElementById('exportOverlay');
+  overlay.classList.add('show');
+  document.getElementById('expPct').textContent = '0%';
+  document.getElementById('expFill').style.width = '0%';
+  document.getElementById('expSub').textContent = `导出中… 时长 ${fmtShort(exportDur)}`;
+
+  doPause();
+
+  // Seek to start
+  await new Promise(resolve => {
+    let done = 0;
+    loaded.forEach(v => {
+      const t = clamp(startT + v.offset, 0, v.el.duration || 0);
+      v.el.addEventListener('seeked', () => { if (++done >= loaded.length) resolve(); }, { once: true });
+      v.el.currentTime = t;
+    });
+  });
+
+  let frameId;
+  function drawFrame() {
+    // Background same as UI gap color
+    ctx.fillStyle = '#d8dadd';
+    ctx.fillRect(0, 0, canvasW, canvasH);
+    tileLayouts.forEach(t => {
+      const { vid, nx, ny, nw, nh } = t;
+      const cx = nx * canvasW, cy = ny * canvasH;
+      const cw = nw * canvasW, ch = nh * canvasH;
+      // Black cell background
+      ctx.fillStyle = '#000';
+      ctx.fillRect(cx, cy, cw, ch);
+      // Draw video with contain fit
+      const vw = vid.el.videoWidth || 640, vh = vid.el.videoHeight || 480;
+      const scale = Math.min(cw / vw, ch / vh);
+      const dw = vw * scale, dh = vh * scale;
+      const dx = cx + (cw - dw) / 2, dy = cy + (ch - dh) / 2;
+      try { ctx.drawImage(vid.el, dx, dy, dw, dh); } catch (_) {}
+      // Badge label
+      const fs = Math.round(Math.min(cw, ch) * 0.04);
+      if (fs < 6) return;
+      ctx.font = `bold ${fs}px system-ui,sans-serif`;
+      const pad = fs * 0.5;
+      const bw = ctx.measureText(vid.label).width + pad * 2, bh = fs + fs * 0.65;
+      ctx.fillStyle = vid.color;
+      ctx.fillRect(dx + 8, dy + 8, bw, bh);
+      ctx.fillStyle = '#fff';
+      ctx.fillText(vid.label, dx + 8 + pad, dy + 8 + fs * 0.92);
+      if (vid.note) {
+        ctx.font = `${fs}px system-ui,sans-serif`;
+        const nw2 = ctx.measureText(vid.note).width + pad;
+        ctx.fillStyle = 'rgba(0,0,0,.55)';
+        ctx.fillRect(dx + 8 + bw, dy + 8, nw2, bh);
+        ctx.fillStyle = '#fff';
+        ctx.fillText(vid.note, dx + 8 + bw + pad * 0.4, dy + 8 + fs * 0.92);
+      }
+    });
+    frameId = requestAnimationFrame(drawFrame);
+  }
+
+  frameId = requestAnimationFrame(drawFrame);
   recorder.start(200);
-  loaded.forEach(v => v.el.play().catch(()=>{}));
+  loaded.forEach(v => v.el.play().catch(() => {}));
+
   const t0 = performance.now();
-  const reason = await new Promise(resolve => {
+  await new Promise(resolve => {
     function check() {
       if (exportCancel) { resolve('cancel'); return; }
-      const elapsed = (performance.now()-t0)/1000;
-      setProgress(Math.min(99, elapsed/exportDur*100));
+      const elapsed = (performance.now() - t0) / 1000;
+      const pct = Math.min(100, elapsed / exportDur * 100);
+      document.getElementById('expPct').textContent = Math.round(pct) + '%';
+      document.getElementById('expFill').style.width = pct + '%';
       if (elapsed >= exportDur || loaded.every(v => v.el.ended)) resolve('done');
       else setTimeout(check, 200);
     }
     check();
+  }).then(async reason => {
+    cancelAnimationFrame(frameId);
+    loaded.forEach(v => v.el.pause());
+    recorder.stop();
+    if (reason === 'cancel') { overlay.classList.remove('show'); return; }
+    document.getElementById('expSub').textContent = '处理中，请稍候…';
+    document.getElementById('expFill').style.width = '100%';
+    document.getElementById('expPct').textContent = '100%';
+    await new Promise(r => { recorder.onstop = r; });
+    const blob = new Blob(chunks, { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `${exportFileName}.${fileExt}`; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    overlay.classList.remove('show');
   });
-  cancelAnimationFrame(rafId);
-  loaded.forEach(v => v.el.pause());
-  recorder.stop();
-  if (reason === 'cancel') { overlay.classList.remove('show'); return; }
-  setProgress(100, '处理中，请稍候…');
-  await new Promise(r => { recorder.onstop = r; });
-  download(new Blob(chunks, {type:mimeType}), fileExt);
-  overlay.classList.remove('show');
 }
 
 // Init
