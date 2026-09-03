@@ -1233,70 +1233,7 @@ async function startExport(exportFileName) {
     setTimeout(() => URL.revokeObjectURL(url), 5000);
   }
 
-  // ── Fast path: WebCodecs + requestVideoFrameCallback (4× speed) ──
-  const canFast = typeof VideoEncoder !== 'undefined' &&
-                  typeof VideoFrame !== 'undefined' &&
-                  typeof loaded[0].el.requestVideoFrameCallback === 'function';
-  if (canFast) {
-    let Mux = null;
-    try { Mux = await import('https://cdn.jsdelivr.net/npm/mp4-muxer@4/build/mp4-muxer.js'); } catch(_) {}
-    if (Mux) {
-      setProgress(0, `快速导出中 (4× 加速)… 约 ${fmtShort(exportDur/4)} 完成`);
-      const muxTarget = new Mux.ArrayBufferTarget();
-      const muxer = new Mux.Muxer({ target: muxTarget, video: { codec:'avc', width:canvasW, height:canvasH }, fastStart:'in-memory' });
-      let encErr = null;
-      const encoder = new VideoEncoder({
-        output: (chunk, meta) => { try { muxer.addVideoChunk(chunk, meta); } catch(e) { encErr = e; } },
-        error: e => { encErr = e; },
-      });
-      let cfgOk = false;
-      for (const hw of ['prefer-hardware','prefer-software']) {
-        try { encoder.configure({ codec:'avc1.42001f', width:canvasW, height:canvasH, bitrate:estimatedBitrate, framerate:30, hardwareAcceleration:hw }); cfgOk=true; break; } catch(_) {}
-      }
-      if (cfgOk) {
-        await seekToStart();
-        const RATE = 4;
-        loaded.forEach(v => { v.el.playbackRate = RATE; });
-        const masterEl = loaded[0].el;
-        let frameIdx = 0;
-        await new Promise(resolve => {
-          function onFrame() {
-            if (exportCancel || encErr) { resolve(); return; }
-            const masterT = masterEl.currentTime, ct = masterT - startT;
-            if (ct >= exportDur || masterEl.ended) { resolve(); return; }
-            for (let i=1; i<loaded.length; i++) {
-              const v = loaded[i]; if (!isFinite(v.el.duration)) continue;
-              const tgt = clamp(masterT+v.offset, 0, v.el.duration);
-              if (Math.abs(v.el.currentTime-tgt) > 0.25) v.el.currentTime = tgt;
-            }
-            drawTiles();
-            try {
-              const vf = new VideoFrame(canvas, { timestamp: Math.round(Math.max(0,ct)*1_000_000) });
-              encoder.encode(vf, { keyFrame: frameIdx%60===0 });
-              vf.close();
-            } catch(e) { encErr=e; resolve(); return; }
-            frameIdx++;
-            setProgress(Math.min(98, ct/exportDur*100));
-            masterEl.requestVideoFrameCallback(onFrame);
-          }
-          loaded.forEach(v => v.el.play().catch(()=>{}));
-          masterEl.requestVideoFrameCallback(onFrame);
-        });
-        loaded.forEach(v => { v.el.pause(); v.el.playbackRate = SPEEDS[speedIdx]; });
-        if (!exportCancel && !encErr) {
-          setProgress(99, '打包中，请稍候…');
-          await encoder.flush();
-          muxer.finalize();
-          download(new Blob([muxTarget.buffer], {type:'video/mp4'}), 'mp4');
-          setProgress(100); overlay.classList.remove('show'); return;
-        }
-        if (exportCancel) { overlay.classList.remove('show'); return; }
-        // encErr: fall through to slow path
-      }
-    }
-  }
-
-  // ── Slow path: MediaRecorder (fallback) ──
+  // ── Export: MediaRecorder ──
   setProgress(0, `导出中… 时长 ${fmtShort(exportDur)}`);
   const mimeTypes = ['video/mp4;codecs=h264,aac','video/mp4;codecs=avc1','video/mp4','video/webm;codecs=vp9','video/webm'];
   const mimeType = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm';
