@@ -562,6 +562,85 @@ video.loaded { display: block; }
   margin-top: 6px;
 }
 .exp-cancel-btn:hover { background: rgba(255,255,255,0.2); }
+
+/* ── 双导轨 ── */
+.dual-tracks {
+  flex: 0 0 auto;
+  background: #f7f8fa;
+  border-top: 1px solid #e2e4e8;
+  padding: 5px 14px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dual-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dual-label {
+  font-size: 11px;
+  font-weight: 800;
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.dual-label.a { color: #2d8cf0; }
+.dual-label.b { color: #f56c6c; }
+.dual-track-wrap {
+  flex: 1;
+  position: relative;
+  height: 14px;
+  background: #e0e2e6;
+  border-radius: 3px;
+  cursor: pointer;
+  overflow: visible;
+}
+.dual-vid-bar {
+  position: absolute;
+  top: 0; bottom: 0;
+  border-radius: 3px;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+.dual-vid-bar.a { background: rgba(45,140,240,0.18); border: 1.5px solid rgba(45,140,240,0.5); }
+.dual-vid-bar.b { background: rgba(245,108,108,0.18); border: 1.5px solid rgba(245,108,108,0.5); }
+.dual-played {
+  position: absolute;
+  top: 0; bottom: 0;
+  border-radius: 3px;
+  pointer-events: none;
+}
+.dual-played.a { background: rgba(45,140,240,0.6); }
+.dual-played.b { background: rgba(245,108,108,0.6); }
+.dual-head {
+  position: absolute;
+  top: -3px; bottom: -3px;
+  width: 2px;
+  margin-left: -1px;
+  background: #333;
+  border-radius: 1px;
+  pointer-events: none;
+  box-shadow: 0 0 3px rgba(0,0,0,0.25);
+}
+.dual-time {
+  font-size: 10px;
+  font-family: monospace;
+  color: #999;
+  width: 54px;
+  flex-shrink: 0;
+  text-align: right;
+}
+.ts-chip {
+  font-size: 10px;
+  font-family: monospace;
+  color: #aaa;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 300px;
+}
 </style>
 </head>
 <body>
@@ -616,6 +695,9 @@ video.loaded { display: block; }
 
   <button class="sync-cur-btn" id="syncCurBtn" title="将当前 B 播放位置设为偏移参考点">从当前位置同步</button>
   <button class="reset-btn" id="resetOffsetBtn">清零</button>
+  <div class="sep" style="height:18px"></div>
+  <button class="sync-cur-btn" id="alignTsBtn" disabled title="根据视频内嵌时间戳自动对齐">⏱ 对齐时间戳</button>
+  <span class="ts-chip" id="tsChip"></span>
 </div>
 
 <!-- 视频区域 -->
@@ -718,6 +800,28 @@ video.loaded { display: block; }
   </div>
 </div>
 
+<!-- 双导轨 -->
+<div class="dual-tracks" id="dualTracks">
+  <div class="dual-row">
+    <span class="dual-label a">A</span>
+    <div class="dual-track-wrap" id="dualWrapA">
+      <div class="dual-vid-bar a" id="dualVidA"></div>
+      <div class="dual-played a" id="dualPlayedA"></div>
+      <div class="dual-head" id="dualHeadA"></div>
+    </div>
+    <span class="dual-time" id="dualTimeA">—</span>
+  </div>
+  <div class="dual-row">
+    <span class="dual-label b">B</span>
+    <div class="dual-track-wrap" id="dualWrapB">
+      <div class="dual-vid-bar b" id="dualVidB"></div>
+      <div class="dual-played b" id="dualPlayedB"></div>
+      <div class="dual-head" id="dualHeadB"></div>
+    </div>
+    <span class="dual-time" id="dualTimeB">—</span>
+  </div>
+</div>
+
 <!-- 导出遮罩 -->
 <div class="export-overlay" id="exportOverlay">
   <div class="exp-title">正在导出拼接视频</div>
@@ -775,6 +879,8 @@ let isSyncing = false;
 let isDragging = false;
 let exportCancel = false;
 let animId = null;
+let tsA = null, tsB = null;   // MP4 creation timestamps (ms, unix epoch)
+let fileObjA = null, fileObjB = null;
 
 // ── 工具函数 ──
 function fmt(t) {
@@ -803,10 +909,11 @@ function loadVid(vid, file, dropEl, shortName, panelName, isA) {
   const n = file.name;
   shortName.textContent = n;
   panelName.textContent = n;
-  if (isA) { loadedA = true; } else { loadedB = true; }
+  if (isA) { loadedA = true; fileObjA = file; } else { loadedB = true; fileObjB = file; }
   if (loadedA && loadedB) exportBtn.disabled = false;
   vid.playbackRate = SPEEDS[speedIdx] || 1;
   updateTrimUI();
+  parseTsAsync(file, isA ? 'A' : 'B');
 }
 
 function setupUpload(inputEl, vid, dropEl, shortName, panelName, isA) {
@@ -825,6 +932,63 @@ function setupUpload(inputEl, vid, dropEl, shortName, panelName, isA) {
 }
 setupUpload(fileA, vA, dropA, fnameA, panelFnameA, true);
 setupUpload(fileB, vB, dropB, fnameB, panelFnameB, false);
+
+// ── MP4 时间戳解析 ──
+async function parseMp4CreationTime(file) {
+  try {
+    const buf = await file.slice(0, 2 * 1024 * 1024).arrayBuffer();
+    const view = new DataView(buf);
+    const containers = new Set(['moov','trak','mdia','minf','stbl','udta','meta','ilst']);
+    let off = 0;
+    while (off + 8 <= buf.byteLength) {
+      let size = view.getUint32(off);
+      const type = String.fromCharCode(
+        view.getUint8(off+4), view.getUint8(off+5),
+        view.getUint8(off+6), view.getUint8(off+7)
+      );
+      if (size === 1 && off + 16 <= buf.byteLength) {
+        size = view.getUint32(off+8) * 4294967296 + view.getUint32(off+12);
+      }
+      if (type === 'mvhd') {
+        const ver = view.getUint8(off + 8);
+        let ct;
+        if (ver === 1) {
+          ct = view.getUint32(off+12) * 4294967296 + view.getUint32(off+16);
+        } else {
+          ct = view.getUint32(off + 12);
+        }
+        // MP4 epoch = 1904-01-01, delta to Unix = 2082844800 s
+        return (ct - 2082844800) * 1000;
+      }
+      if (containers.has(type)) { off += (size === 1 ? 16 : 8); continue; }
+      if (size < 8) break;
+      off += size;
+    }
+  } catch (_) {}
+  return null;
+}
+
+async function parseTsAsync(file, which) {
+  const ts = await parseMp4CreationTime(file);
+  if (which === 'A') tsA = ts; else tsB = ts;
+  updateTsChip();
+  updateAlignBtn();
+}
+
+function updateTsChip() {
+  const chip = document.getElementById('tsChip');
+  const fmtTs = ts => ts
+    ? new Date(ts).toLocaleString('zh-CN', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'})
+    : '无时间戳';
+  const parts = [];
+  if (loadedA) parts.push('A: ' + fmtTs(tsA));
+  if (loadedB) parts.push('B: ' + fmtTs(tsB));
+  chip.textContent = parts.join('  │  ');
+}
+
+function updateAlignBtn() {
+  document.getElementById('alignTsBtn').disabled = !(tsA && tsB);
+}
 
 // ── 偏移控制 ──
 function setOffset(val) {
@@ -852,6 +1016,24 @@ syncCurBtn.addEventListener('click', () => {
 });
 
 resetOffsetBtn.addEventListener('click', () => setOffset(0));
+
+document.getElementById('alignTsBtn').addEventListener('click', () => {
+  if (!tsA || !tsB) return;
+  const durA = (vA.duration && isFinite(vA.duration)) ? vA.duration : 0;
+  const durB = (vB.duration && isFinite(vB.duration)) ? vB.duration : 0;
+  // 计算偏移：B 相对 A 的起始时间差（秒）
+  const offsetSec = (tsB - tsA) / 1000;
+  // 检查是否有时间重叠：A 范围 [0, durA]，B 映射到 A 时间轴上范围 [-offsetSec, -offsetSec+durB]
+  const aStart = 0, aEnd = durA;
+  const bStart = -offsetSec, bEnd = -offsetSec + durB;
+  if (durA > 0 && durB > 0 && (bStart >= aEnd || bEnd <= aStart)) {
+    alert('这两段视频的时间段无重合部分，无法对齐。\n\nA: ' +
+      new Date(tsA).toLocaleString('zh-CN') + '  时长 ' + fmtShort(durA) +
+      '\nB: ' + new Date(tsB).toLocaleString('zh-CN') + '  时长 ' + fmtShort(durB));
+    return;
+  }
+  setOffset(offsetSec);
+});
 
 // ── 播放同步 ──
 vA.addEventListener('timeupdate', () => {
@@ -1092,8 +1274,62 @@ function tick() {
   }
   if (loadedA) tcA.textContent = fmt(vA.currentTime);
   if (loadedB) tcB.textContent = fmt(vB.currentTime);
+  if (loadedA || loadedB) updateDualTracks();
   animId = requestAnimationFrame(tick);
 }
+
+function updateDualTracks() {
+  const durA = (loadedA && vA.duration && isFinite(vA.duration)) ? vA.duration : 0;
+  const durB = (loadedB && vB.duration && isFinite(vB.duration)) ? vB.duration : 0;
+  if (!durA && !durB) return;
+
+  // A 在合并时间轴上的起点、B 在合并时间轴上的起点
+  const oA = Math.max(0, -bOffset);
+  const oB = Math.max(0,  bOffset);
+  const totalDur = Math.max(oA + durA, oB + durB) || 1;
+
+  const p = v => (v / totalDur * 100).toFixed(3) + '%';
+
+  // Track A
+  const vidAL = oA / totalDur * 100;
+  const vidAW = durA / totalDur * 100;
+  const playedAW = loadedA ? Math.min(vA.currentTime / totalDur * 100, vidAW) : 0;
+  const headA   = loadedA ? (oA + vA.currentTime) / totalDur * 100 : vidAL;
+
+  document.getElementById('dualVidA').style.cssText    = `left:${vidAL.toFixed(3)}%;width:${vidAW.toFixed(3)}%`;
+  document.getElementById('dualPlayedA').style.cssText = `left:${vidAL.toFixed(3)}%;width:${playedAW.toFixed(3)}%`;
+  document.getElementById('dualHeadA').style.left      = headA.toFixed(3) + '%';
+  document.getElementById('dualTimeA').textContent     = loadedA ? fmt(vA.currentTime) : '—';
+
+  // Track B
+  const vidBL = oB / totalDur * 100;
+  const vidBW = durB / totalDur * 100;
+  const playedBW = loadedB ? Math.min(vB.currentTime / totalDur * 100, vidBW) : 0;
+  const headB   = loadedB ? (oB + vB.currentTime) / totalDur * 100 : vidBL;
+
+  document.getElementById('dualVidB').style.cssText    = `left:${vidBL.toFixed(3)}%;width:${vidBW.toFixed(3)}%`;
+  document.getElementById('dualPlayedB').style.cssText = `left:${vidBL.toFixed(3)}%;width:${playedBW.toFixed(3)}%`;
+  document.getElementById('dualHeadB').style.left      = headB.toFixed(3) + '%';
+  document.getElementById('dualTimeB').textContent     = loadedB ? fmt(vB.currentTime) : '—';
+}
+
+// 双导轨点击跳转
+['dualWrapA','dualWrapB'].forEach(id => {
+  document.getElementById(id).addEventListener('click', e => {
+    if (!loadedA && !loadedB) return;
+    const el = document.getElementById(id);
+    const pct = clamp((e.clientX - el.getBoundingClientRect().left) / el.offsetWidth, 0, 1);
+    const durA = (loadedA && vA.duration && isFinite(vA.duration)) ? vA.duration : 0;
+    const durB = (loadedB && vB.duration && isFinite(vB.duration)) ? vB.duration : 0;
+    const oA = Math.max(0, -bOffset);
+    const oB = Math.max(0,  bOffset);
+    const totalDur = Math.max(oA + durA, oB + durB) || 1;
+    const combinedT = pct * totalDur;
+    const tA = combinedT - oA;
+    if (loadedA) vA.currentTime = clamp(tA, 0, durA);
+    if (loadedB) vB.currentTime = clamp(tA + bOffset, 0, durB);
+  });
+});
 animId = requestAnimationFrame(tick);
 
 // ══════════════════════════════════════════
