@@ -121,16 +121,16 @@ body{
 .tile-fname{font-size:10px;color:#ccc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tile-tc{font-size:10px;font-family:monospace;color:#aaa;margin-top:1px}
 
-/* Layout button overlay */
+/* Layout button (header) */
 .layout-btn{
-  position:absolute;top:12px;right:12px;
-  background:rgba(255,255,255,.92);border:1px solid #e0e2e6;
-  border-radius:6px;padding:4px 11px;font-size:11px;color:#555;
-  cursor:pointer;z-index:10;
-  transition:background .1s,color .1s;white-space:nowrap;
-  box-shadow:0 1px 4px rgba(0,0,0,.08);
+  display:flex;align-items:center;gap:5px;padding:5px 11px;
+  border-radius:6px;border:1px solid #d8d9dd;background:#f7f8fa;
+  color:#444;font-size:12px;cursor:pointer;white-space:nowrap;
+  transition:border-color .12s,background .12s;
 }
-.layout-btn:hover{background:#fff;color:#111}
+.layout-btn:hover{border-color:#b0b3bb;background:#eef0f3}
+/* Offset group in ctrl-row */
+.off-group{display:flex;align-items:center;gap:3px;flex-shrink:0}
 
 /* ── CTRL BAR ── */
 .ctrl-bar{
@@ -314,6 +314,7 @@ body{
     导入视频
     <input type="file" id="mainFileInput" accept="video/*" multiple>
   </label>
+  <button class="layout-btn" id="layoutBtn" style="display:none">布局</button>
   <div class="spacer"></div>
   <select class="ver-select" id="verSelect"></select>
   <div class="sep"></div>
@@ -332,7 +333,6 @@ body{
       <input type="file" id="emptyFileInput" accept="video/*" multiple>
     </label>
   </div>
-  <button class="layout-btn" id="layoutBtn" style="display:none">布局</button>
 </div>
 
 <div class="ctrl-bar">
@@ -362,6 +362,7 @@ body{
     </button>
     <button class="cbtn" id="btnFwd"><svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg></button>
     <span class="time-txt" id="timeTxt">0:00 / 0:00</span>
+    <div id="offsetCtrls" style="display:none;align-items:center;gap:10px"></div>
     <div class="sep" style="height:18px"></div>
     <button class="cbtn" id="btnMute">
       <svg id="iVol" width="17" height="17" fill="currentColor" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
@@ -922,21 +923,9 @@ document.getElementById('syncCurBtn').addEventListener('click', () => {
 function updateTrackRows() {
   const container = document.getElementById('trackRows');
   container.innerHTML = '';
-  videos.forEach((v, i) => {
+  videos.forEach(v => {
     const row = document.createElement('div');
     row.className = 'track-row';
-
-    const offCtrl = i === 0
-      ? `<span class="off-master-tag">主轨</span>`
-      : `<div class="off-ctrl">
-           <button class="off-btn" data-vidid="${v.id}" data-delta="-1">−1s</button>
-           <button class="off-btn" data-vidid="${v.id}" data-delta="${(-1/30).toFixed(5)}">−f</button>
-           <input class="off-input" id="offin-${v.id}" type="number" step="0.033" value="${v.offset.toFixed(3)}">
-           <span style="font-size:10px;color:#999">s</span>
-           <button class="off-btn" data-vidid="${v.id}" data-delta="${(1/30).toFixed(5)}">+f</button>
-           <button class="off-btn" data-vidid="${v.id}" data-delta="1">+1s</button>
-         </div>`;
-
     row.innerHTML = `
       <span class="track-label" style="background:${v.color}">${v.label}</span>
       <div class="track-wrap" id="twrap-${v.id}">
@@ -944,9 +933,7 @@ function updateTrackRows() {
         <div class="track-played"  id="tplay-${v.id}"></div>
         <div class="track-head"    id="thead-${v.id}"></div>
       </div>
-      <span class="track-time" id="ttime-${v.id}">—</span>
-      ${offCtrl}`;
-
+      <span class="track-time" id="ttime-${v.id}">—</span>`;
     row.querySelector('.track-wrap').addEventListener('click', e => {
       if (!videos[0]?.loaded) return;
       const rect = e.currentTarget.getBoundingClientRect();
@@ -954,19 +941,42 @@ function updateTrackRows() {
       const { totalDur, shift } = getTimelineInfo();
       seekAll(pct * totalDur - shift);
     });
+    container.appendChild(row);
+  });
+  updateOffsetCtrls();
+}
 
-    row.querySelectorAll('.off-btn').forEach(btn => {
+function updateOffsetCtrls() {
+  const container = document.getElementById('offsetCtrls');
+  container.innerHTML = '';
+  const nonMaster = videos.filter((_, i) => i > 0);
+  container.style.display = nonMaster.length ? 'flex' : 'none';
+  nonMaster.forEach((v, gi) => {
+    if (gi > 0) {
+      const s = document.createElement('div');
+      s.style.cssText = 'width:1px;height:18px;background:#e0e2e6;flex-shrink:0';
+      container.appendChild(s);
+    }
+    const group = document.createElement('div');
+    group.className = 'off-group';
+    group.innerHTML = `
+      <span class="track-label" style="background:${v.color}">${v.label}</span>
+      <button class="off-btn" data-vidid="${v.id}" data-delta="-1">−1s</button>
+      <button class="off-btn" data-vidid="${v.id}" data-delta="${(-1/30).toFixed(5)}">−f</button>
+      <input class="off-input" id="offin-${v.id}" type="number" step="0.033" value="${v.offset.toFixed(3)}">
+      <span style="font-size:10px;color:#999">s</span>
+      <button class="off-btn" data-vidid="${v.id}" data-delta="${(1/30).toFixed(5)}">+f</button>
+      <button class="off-btn" data-vidid="${v.id}" data-delta="1">+1s</button>`;
+    group.querySelectorAll('.off-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        const vv = videos.find(v => v.id === btn.dataset.vidid);
+        const vv = videos.find(vv => vv.id === btn.dataset.vidid);
         if (vv) setVideoOffset(vv.id, vv.offset + parseFloat(btn.dataset.delta));
       });
     });
-    const inp = row.querySelector('.off-input');
-    if (inp) {
-      inp.addEventListener('change', () => setVideoOffset(v.id, parseFloat(inp.value) || 0));
-      inp.addEventListener('keydown', e => { if (e.key === 'Enter') setVideoOffset(v.id, parseFloat(inp.value) || 0); });
-    }
-    container.appendChild(row);
+    const inp = group.querySelector('.off-input');
+    inp.addEventListener('change', () => setVideoOffset(v.id, parseFloat(inp.value) || 0));
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') setVideoOffset(v.id, parseFloat(inp.value) || 0); });
+    container.appendChild(group);
   });
 }
 
