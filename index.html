@@ -1162,7 +1162,12 @@ async function startExport(exportFileName) {
     dest.stream.getAudioTracks().forEach(t => canvasStream.addTrack(t));
   } catch (_) {}
 
-  const recorder = new MediaRecorder(canvasStream, { mimeType, videoBitsPerSecond: 80_000_000 });
+  // Estimate target bitrate from input files (sum of each video's bitrate)
+  const estimatedBitrate = loaded.reduce((sum, v) => {
+    const dur = v.el.duration || 1;
+    return sum + Math.round(v.file.size * 8 / dur);
+  }, 0);
+  const recorder = new MediaRecorder(canvasStream, { mimeType, videoBitsPerSecond: estimatedBitrate });
   const chunks = [];
   recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
 
