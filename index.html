@@ -1141,9 +1141,34 @@ async function startExport(exportFileName) {
   if (trimIn !== null && trimOut !== null) exportDur = Math.min(trimOut - trimIn, exportDur);
   if (exportDur <= 0) { alert('导出范围无效，请检查入点/出点设置。'); return; }
 
-  const canvasH = Math.max(480, ...loaded.map(v => v.el.videoHeight || 480));
-  const panelWidths = loaded.map(v => Math.round((v.el.videoWidth || 640) * (canvasH / (v.el.videoHeight || 480))));
-  const canvasW = panelWidths.reduce((a,b) => a+b, 0);
+  // Compute canvas layout from actual tile body positions in the grid
+  const gridEl = document.getElementById('videoGrid');
+  const gridRect = gridEl.getBoundingClientRect();
+  const tileLayouts = loaded.map(v => {
+    const r = v.tileEl.querySelector('.tile-body').getBoundingClientRect();
+    return {
+      vid: v,
+      nx: (r.left   - gridRect.left) / gridRect.width,
+      ny: (r.top    - gridRect.top)  / gridRect.height,
+      nw: r.width  / gridRect.width,
+      nh: r.height / gridRect.height,
+    };
+  });
+  // Canvas size: implied by each tile's video resolution / normalized cell size
+  let canvasW = 320, canvasH = 240;
+  tileLayouts.forEach(t => {
+    const vw = t.vid.el.videoWidth  || 640;
+    const vh = t.vid.el.videoHeight || 480;
+    canvasW = Math.max(canvasW, Math.round(vw / t.nw));
+    canvasH = Math.max(canvasH, Math.round(vh / t.nh));
+  });
+  // Cap to avoid browser OOM on extreme layouts
+  const maxDim = 7680;
+  if (canvasW > maxDim || canvasH > maxDim) {
+    const scale = Math.min(maxDim / canvasW, maxDim / canvasH);
+    canvasW = Math.round(canvasW * scale);
+    canvasH = Math.round(canvasH * scale);
+  }
 
   const canvas = document.createElement('canvas');
   canvas.width = canvasW; canvas.height = canvasH;
@@ -1192,25 +1217,40 @@ async function startExport(exportFileName) {
 
   let frameId;
   function drawFrame() {
-    ctx.fillStyle = '#000';
+    // Background same as UI gap color
+    ctx.fillStyle = '#d8dadd';
     ctx.fillRect(0, 0, canvasW, canvasH);
-    let x = 0;
-    loaded.forEach((v, li) => {
-      const pw = panelWidths[li];
-      try { ctx.drawImage(v.el, x, 0, pw, canvasH); } catch (_) {}
+    tileLayouts.forEach(t => {
+      const { vid, nx, ny, nw, nh } = t;
+      const cx = nx * canvasW, cy = ny * canvasH;
+      const cw = nw * canvasW, ch = nh * canvasH;
+      // Black cell background
+      ctx.fillStyle = '#000';
+      ctx.fillRect(cx, cy, cw, ch);
+      // Draw video with contain fit
+      const vw = vid.el.videoWidth || 640, vh = vid.el.videoHeight || 480;
+      const scale = Math.min(cw / vw, ch / vh);
+      const dw = vw * scale, dh = vh * scale;
+      const dx = cx + (cw - dw) / 2, dy = cy + (ch - dh) / 2;
+      try { ctx.drawImage(vid.el, dx, dy, dw, dh); } catch (_) {}
       // Badge label
-      const fs = Math.round(canvasH * 0.022);
+      const fs = Math.round(Math.min(cw, ch) * 0.04);
+      if (fs < 6) return;
       ctx.font = `bold ${fs}px system-ui,sans-serif`;
-      const pad = fs * 0.5, bw = ctx.measureText(v.label).width + pad * 2, bh = fs + fs * 0.7;
-      ctx.fillStyle = v.color; ctx.fillRect(x + 10, 10, bw, bh);
-      ctx.fillStyle = '#fff'; ctx.fillText(v.label, x + 10 + pad, 10 + fs * 0.95);
-      if (v.note) {
+      const pad = fs * 0.5;
+      const bw = ctx.measureText(vid.label).width + pad * 2, bh = fs + fs * 0.65;
+      ctx.fillStyle = vid.color;
+      ctx.fillRect(dx + 8, dy + 8, bw, bh);
+      ctx.fillStyle = '#fff';
+      ctx.fillText(vid.label, dx + 8 + pad, dy + 8 + fs * 0.92);
+      if (vid.note) {
         ctx.font = `${fs}px system-ui,sans-serif`;
-        const nw = ctx.measureText(v.note).width + pad;
-        ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(x + 10 + bw, 10, nw, bh);
-        ctx.fillStyle = '#fff'; ctx.fillText(v.note, x + 10 + bw + pad * 0.5, 10 + fs * 0.95);
+        const nw2 = ctx.measureText(vid.note).width + pad;
+        ctx.fillStyle = 'rgba(0,0,0,.55)';
+        ctx.fillRect(dx + 8 + bw, dy + 8, nw2, bh);
+        ctx.fillStyle = '#fff';
+        ctx.fillText(vid.note, dx + 8 + bw + pad * 0.4, dy + 8 + fs * 0.92);
       }
-      x += pw;
     });
     frameId = requestAnimationFrame(drawFrame);
   }
