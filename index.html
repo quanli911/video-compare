@@ -540,7 +540,7 @@ function createVideoEntry(file) {
   tile.querySelector('.tile-fname').textContent = file.name;
   tile.querySelector('.tile-drop-zone').classList.add('hidden');
   const grid = document.getElementById('videoGrid');
-  grid.insertBefore(tile, document.getElementById('layoutBtn'));
+  grid.appendChild(tile);
   layoutIdx = 0;
   updateAll();
   parseTsAsync(vid);
