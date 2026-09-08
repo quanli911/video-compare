@@ -454,6 +454,7 @@ let layoutIdx = 0;
 let trimIn = null, trimOut = null;
 let seekDragging = false;
 let speedIdx = SPEEDS.indexOf(1);
+let tsAutoAligned = false;
 
 // ══════════════════════════════════════════════
 // HELPERS
@@ -544,6 +545,7 @@ function createVideoEntry(file) {
   const grid = document.getElementById('videoGrid');
   grid.appendChild(tile);
   layoutIdx = 0;
+  tsAutoAligned = false;
   updateAll();
   parseTsAsync(vid);
 }
@@ -556,6 +558,7 @@ function loadFileIntoTile(vid, file) {
   vid.el.addEventListener('loadedmetadata', () => { vid.loaded = true; updateExportBtn(); }, { once: true });
   vid.tileEl.querySelector('.tile-fname').textContent = file.name;
   vid.tileEl.querySelector('.tile-drop-zone').classList.add('hidden');
+  tsAutoAligned = false;
   parseTsAsync(vid);
   updateTsInfo();
 }
@@ -574,6 +577,7 @@ function removeVideo(vidId) {
   }
   reassignLabels();
   layoutIdx = 0;
+  tsAutoAligned = false;
   updateAll();
 }
 
@@ -1018,6 +1022,7 @@ async function parseMp4CreationTime(file) {
   try {
     const buf = await file.slice(0, 2 * 1024 * 1024).arrayBuffer();
     const view = new DataView(buf);
+    const dec = new TextDecoder();
     const containers = new Set(['moov','trak','mdia','minf','stbl','udta','meta','ilst']);
     let off = 0;
     while (off + 8 <= buf.byteLength) {
@@ -1029,7 +1034,19 @@ async function parseMp4CreationTime(file) {
         const ct = ver === 1
           ? view.getUint32(off+12)*4294967296 + view.getUint32(off+16)
           : view.getUint32(off+12);
-        return (ct - 2082844800) * 1000;
+        if (ct > 0) return (ct - 2082844800) * 1000;
+      }
+      // ©day metadata string (ISO 8601), common in iOS/camera MOV/MP4
+      if (view.getUint8(off+4) === 0xa9 && type.slice(1) === 'day' && off + 24 <= buf.byteLength) {
+        try {
+          const dataBoxSize = view.getUint32(off + 8);
+          const strLen = dataBoxSize - 16;
+          if (strLen > 0 && off + 24 + strLen <= buf.byteLength) {
+            const str = dec.decode(new Uint8Array(buf, off + 24, strLen)).trim();
+            const d = new Date(str);
+            if (!isNaN(d.getTime()) && d.getFullYear() >= 2000) return d.getTime();
+          }
+        } catch (_) {}
       }
       if (containers.has(type)) { off += (size === 1 ? 16 : 8); continue; }
       if (size < 8) break;
@@ -1039,9 +1056,33 @@ async function parseMp4CreationTime(file) {
   return null;
 }
 
+// Fallback: parse timestamp from common video filename patterns
+// Handles: VID_20250101_120000, 2025-01-01_12-00-00, 20250101_120000, etc.
+function parseTsFromFilename(filename) {
+  const name = filename.replace(/\.[^.]+$/, '');
+  let m = name.match(/(\d{4})[.\-_](\d{2})[.\-_](\d{2})[T_\-\s](\d{2})[.\-_:](\d{2})[.\-_:](\d{2})/);
+  if (m) {
+    const [, Y, Mo, D, h, mi, s] = m.map(Number);
+    if (Y >= 2000 && Y <= 2099) return new Date(Y, Mo - 1, D, h, mi, s).getTime();
+  }
+  m = name.match(/(\d{8})[_\-T](\d{6})/);
+  if (m) {
+    const Y = +m[1].slice(0,4), Mo = +m[1].slice(4,6) - 1, D = +m[1].slice(6,8);
+    const h = +m[2].slice(0,2), mi = +m[2].slice(2,4), s = +m[2].slice(4,6);
+    if (Y >= 2000 && Y <= 2099) return new Date(Y, Mo, D, h, mi, s).getTime();
+  }
+  return null;
+}
+
 async function parseTsAsync(vid) {
   vid.tsMs = await parseMp4CreationTime(vid.file);
+  if (vid.tsMs === null) vid.tsMs = parseTsFromFilename(vid.file.name);
   updateTsInfo(); updateAlignBtn();
+  // Auto-align once all loaded videos have timestamps
+  if (!tsAutoAligned && videos.length >= 2 && videos.every(v => v.tsMs !== null)) {
+    tsAutoAligned = true;
+    doAlignTs(false);
+  }
 }
 
 function updateTsInfo() {
@@ -1053,8 +1094,8 @@ function updateAlignBtn() {
   document.getElementById('alignTsBtn').disabled = !(videos.length >= 2 && videos.every(v => v.tsMs !== null));
 }
 
-document.getElementById('alignTsBtn').addEventListener('click', () => {
-  if (videos.length < 2) return;
+function doAlignTs(showAlert) {
+  if (videos.length < 2 || !videos[0].tsMs) return;
   const masterTs = videos[0].tsMs;
   for (let i = 1; i < videos.length; i++) {
     const v = videos[i]; if (!v.tsMs) continue;
@@ -1063,12 +1104,14 @@ document.getElementById('alignTsBtn').addEventListener('click', () => {
     const durV = v.el.duration || 0;
     const vStart = -newOff, vEnd = -newOff + durV;
     if (durM > 0 && durV > 0 && (vStart >= durM || vEnd <= 0)) {
-      alert(`${v.label} 与主轨 A 的时间段无重合，无法对齐。\n\nA: ${new Date(masterTs).toLocaleString('zh-CN')}  时长 ${fmtShort(durM)}\n${v.label}: ${new Date(v.tsMs).toLocaleString('zh-CN')}  时长 ${fmtShort(durV)}`);
+      if (showAlert) alert(`${v.label} 与主轨 A 的时间段无重合，无法对齐。\n\nA: ${new Date(masterTs).toLocaleString('zh-CN')}  时长 ${fmtShort(durM)}\n${v.label}: ${new Date(v.tsMs).toLocaleString('zh-CN')}  时长 ${fmtShort(durV)}`);
       continue;
     }
     setVideoOffset(v.id, newOff);
   }
-});
+}
+
+document.getElementById('alignTsBtn').addEventListener('click', () => doAlignTs(true));
 
 // ══════════════════════════════════════════════
 // TICK LOOP
