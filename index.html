@@ -409,9 +409,10 @@ body{
 // ══════════════════════════════════════════════
 // CONFIG
 // ══════════════════════════════════════════════
-const VERSION = 'v2.1';
+const VERSION = 'v2.2';
 const VERSIONS = [
-  { ver: 'v2.1', file: 'index.html',         desc: '布局导出对齐·码率自适应' },
+  { ver: 'v2.2', file: 'index.html',         desc: '无黑边拼接·自适应宽高比' },
+  { ver: 'v2.1', file: 'versions/v2.1.html', desc: '布局导出对齐·码率自适应' },
   { ver: 'v2.0', file: 'versions/v2.0.html', desc: '多视频·自由布局' },
   { ver: 'v1.1', file: 'versions/v1.1.html', desc: '双视频对比' },
 ];
@@ -1129,6 +1130,73 @@ document.getElementById('nameConfirmBtn').addEventListener('click', () => {
 });
 document.getElementById('expCancelBtn').addEventListener('click', () => { exportCancel = true; });
 
+function computeExportLayout(loaded) {
+  const gridEl = document.getElementById('videoGrid');
+  const gridRect = gridEl.getBoundingClientRect();
+  const GAP = 7;
+  const norm = loaded.map(v => {
+    const r = v.tileEl.querySelector('.tile-body').getBoundingClientRect();
+    return {
+      vid: v,
+      nx: (r.left - gridRect.left) / gridRect.width,
+      ny: (r.top  - gridRect.top)  / gridRect.height,
+      nw: r.width  / gridRect.width,
+      nh: r.height / gridRect.height,
+    };
+  });
+  const nySnap = norm.map(t => Math.round(t.ny * 1000));
+  const nxSnap = norm.map(t => Math.round(t.nx * 1000));
+  const singleRow = new Set(nySnap).size === 1;
+  const singleCol = new Set(nxSnap).size === 1;
+
+  if (singleRow) {
+    // Horizontal layout: same height for all, each video width from its own aspect ratio
+    const H = Math.min(Math.max(...loaded.map(v => v.el.videoHeight || 480)), 4320);
+    const widths = loaded.map(v => Math.round(H * (v.el.videoWidth || 640) / (v.el.videoHeight || 480)));
+    const totalW = widths.reduce((a, b) => a + b, 0) + (loaded.length - 1) * GAP;
+    let x = 0;
+    const tileLayouts = loaded.map((v, i) => {
+      const t = { vid: v, cx: x, cy: 0, cw: widths[i], ch: H };
+      x += widths[i] + GAP;
+      return t;
+    });
+    return { canvasW: totalW, canvasH: H, tileLayouts };
+  }
+
+  if (singleCol) {
+    // Vertical layout: same width for all, each video height from its own aspect ratio
+    const W = Math.min(Math.max(...loaded.map(v => v.el.videoWidth || 640)), 7680);
+    const heights = loaded.map(v => Math.round(W * (v.el.videoHeight || 480) / (v.el.videoWidth || 640)));
+    const totalH = heights.reduce((a, b) => a + b, 0) + (loaded.length - 1) * GAP;
+    let y = 0;
+    const tileLayouts = loaded.map((v, i) => {
+      const t = { vid: v, cx: 0, cy: y, cw: W, ch: heights[i] };
+      y += heights[i] + GAP;
+      return t;
+    });
+    return { canvasW: W, canvasH: totalH, tileLayouts };
+  }
+
+  // Grid layout: use DOM proportions, cover-draw to avoid black bars
+  let canvasW = 320, canvasH = 240;
+  norm.forEach(t => {
+    canvasW = Math.max(canvasW, Math.round((t.vid.el.videoWidth  || 640) / t.nw));
+    canvasH = Math.max(canvasH, Math.round((t.vid.el.videoHeight || 480) / t.nh));
+  });
+  const maxDim = 7680;
+  if (canvasW > maxDim || canvasH > maxDim) {
+    const s = Math.min(maxDim / canvasW, maxDim / canvasH);
+    canvasW = Math.round(canvasW * s);
+    canvasH = Math.round(canvasH * s);
+  }
+  const tileLayouts = norm.map(t => ({
+    vid: t.vid,
+    cx: Math.round(t.nx * canvasW), cy: Math.round(t.ny * canvasH),
+    cw: Math.round(t.nw * canvasW), ch: Math.round(t.nh * canvasH),
+  }));
+  return { canvasW, canvasH, tileLayouts };
+}
+
 async function startExport(exportFileName) {
   const loaded = videos.filter(v => v.loaded);
   if (!loaded.length) return;
@@ -1142,34 +1210,7 @@ async function startExport(exportFileName) {
   if (trimIn !== null && trimOut !== null) exportDur = Math.min(trimOut - trimIn, exportDur);
   if (exportDur <= 0) { alert('导出范围无效，请检查入点/出点设置。'); return; }
 
-  // Compute canvas layout from actual tile body positions in the grid
-  const gridEl = document.getElementById('videoGrid');
-  const gridRect = gridEl.getBoundingClientRect();
-  const tileLayouts = loaded.map(v => {
-    const r = v.tileEl.querySelector('.tile-body').getBoundingClientRect();
-    return {
-      vid: v,
-      nx: (r.left   - gridRect.left) / gridRect.width,
-      ny: (r.top    - gridRect.top)  / gridRect.height,
-      nw: r.width  / gridRect.width,
-      nh: r.height / gridRect.height,
-    };
-  });
-  // Canvas size: implied by each tile's video resolution / normalized cell size
-  let canvasW = 320, canvasH = 240;
-  tileLayouts.forEach(t => {
-    const vw = t.vid.el.videoWidth  || 640;
-    const vh = t.vid.el.videoHeight || 480;
-    canvasW = Math.max(canvasW, Math.round(vw / t.nw));
-    canvasH = Math.max(canvasH, Math.round(vh / t.nh));
-  });
-  // Cap to avoid browser OOM on extreme layouts
-  const maxDim = 7680;
-  if (canvasW > maxDim || canvasH > maxDim) {
-    const scale = Math.min(maxDim / canvasW, maxDim / canvasH);
-    canvasW = Math.round(canvasW * scale);
-    canvasH = Math.round(canvasH * scale);
-  }
+  const { canvasW, canvasH, tileLayouts } = computeExportLayout(loaded);
 
   const canvas = document.createElement('canvas');
   canvas.width = canvasW; canvas.height = canvasH;
@@ -1217,39 +1258,37 @@ async function startExport(exportFileName) {
 
   let frameId;
   function drawFrame() {
-    // Background same as UI gap color
     ctx.fillStyle = '#d8dadd';
     ctx.fillRect(0, 0, canvasW, canvasH);
     tileLayouts.forEach(t => {
-      const { vid, nx, ny, nw, nh } = t;
-      const cx = nx * canvasW, cy = ny * canvasH;
-      const cw = nw * canvasW, ch = nh * canvasH;
-      // Black cell background
-      ctx.fillStyle = '#000';
-      ctx.fillRect(cx, cy, cw, ch);
-      // Draw video with contain fit
+      const { vid, cx, cy, cw, ch } = t;
       const vw = vid.el.videoWidth || 640, vh = vid.el.videoHeight || 480;
-      const scale = Math.min(cw / vw, ch / vh);
+      // Cover fill: scale to fill cell completely, clip overflow — no black bars
+      const scale = Math.max(cw / vw, ch / vh);
       const dw = vw * scale, dh = vh * scale;
       const dx = cx + (cw - dw) / 2, dy = cy + (ch - dh) / 2;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(cx, cy, cw, ch);
+      ctx.clip();
       try { ctx.drawImage(vid.el, dx, dy, dw, dh); } catch (_) {}
-      // Badge label
+      ctx.restore();
       const fs = Math.round(Math.min(cw, ch) * 0.04);
       if (fs < 6) return;
       ctx.font = `bold ${fs}px system-ui,sans-serif`;
       const pad = fs * 0.5;
       const bw = ctx.measureText(vid.label).width + pad * 2, bh = fs + fs * 0.65;
       ctx.fillStyle = vid.color;
-      ctx.fillRect(dx + 8, dy + 8, bw, bh);
+      ctx.fillRect(cx + 8, cy + 8, bw, bh);
       ctx.fillStyle = '#fff';
-      ctx.fillText(vid.label, dx + 8 + pad, dy + 8 + fs * 0.92);
+      ctx.fillText(vid.label, cx + 8 + pad, cy + 8 + fs * 0.92);
       if (vid.note) {
         ctx.font = `${fs}px system-ui,sans-serif`;
         const nw2 = ctx.measureText(vid.note).width + pad;
         ctx.fillStyle = 'rgba(0,0,0,.55)';
-        ctx.fillRect(dx + 8 + bw, dy + 8, nw2, bh);
+        ctx.fillRect(cx + 8 + bw, cy + 8, nw2, bh);
         ctx.fillStyle = '#fff';
-        ctx.fillText(vid.note, dx + 8 + bw + pad * 0.4, dy + 8 + fs * 0.92);
+        ctx.fillText(vid.note, cx + 8 + bw + pad * 0.4, cy + 8 + fs * 0.92);
       }
     });
     frameId = requestAnimationFrame(drawFrame);
